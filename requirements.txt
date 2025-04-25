@@ -1,2 +1,6 @@
+pandas
+numpy
 librosa
 matplotlib
+mido
+rtmidi
