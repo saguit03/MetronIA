@@ -1,5 +1,6 @@
 pandas
 numpy
+NumPy==2.1
 librosa
 matplotlib
 mido
