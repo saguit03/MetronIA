@@ -5,3 +5,5 @@ librosa
 matplotlib
 mido
 rtmidi
+streamlit
+IPython
