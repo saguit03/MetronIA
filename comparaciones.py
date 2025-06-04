@@ -103,7 +103,7 @@ def plot_beat_spectrums(S_ref, S_aligned, sampling_rate, nombre=None):
     plt.grid(True)
     plt.tight_layout()
     # plt.show()
-    plt.savefig('plt_beat_spectrum_comparisons/'+nombre+'.png', dpi=300)
+    plt.savefig('plt_beat_spectrum_comparisons'+nombre+'.png', dpi=300)
     plt.close()
 
 # Comparación 1
@@ -202,7 +202,7 @@ def plot_onsets_errors(onsets_ref, onsets_live, matched, unmatched_ref, unmatche
     plt.grid(True)
     plt.tight_layout()
     # plt.show()
-    plt.savefig('plt_onsets_errors_comparisons/'+nombre+'.png', dpi=300)
+    plt.savefig('plt_onsets_errors_comparisons'+nombre+'.png', dpi=300)
     plt.close()
 
 def extract_features(audio, sr, hop_length=512, n_mfcc=20):
@@ -316,7 +316,7 @@ def plot_onsets_detailed(onsets_ref, onsets_live,
     plt.grid(True)
     plt.tight_layout()
     # plt.show()
-    plt.savefig('plt_onsets_detailed_comparisons/'+nombre+'.png', dpi=300)
+    plt.savefig('plt_onsets_detailed_comparisons'+nombre+'.png', dpi=300)
     plt.close()
 
 def detect_rhythm_pattern_errors(onsets_ref, onsets_live, threshold=0.1):

@@ -7,3 +7,4 @@ mido
 rtmidi
 streamlit
 IPython
+midi2audio
