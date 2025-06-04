@@ -4,7 +4,6 @@ from mdtk.degradations import (
     pitch_shift,
     offset_shift,
     onset_shift,
-    remove_note,
     add_note,
     join_notes,
     MAX_PITCH_DEFAULT,
@@ -18,7 +17,8 @@ from mdtk.mutations import (
     slower_tempo,
     time_shift_mutation,
     tempo_fluctuation,
-    offset_cut
+    offset_cut,
+    remove_intermediate_note
 )
 
 from default_factors import (
@@ -97,7 +97,7 @@ def note_cut_too_soon_mutation(excerpt, min_shift=NOTE_CUT_TOO_SOON["min_shift"]
     
 # note_missing. Not played at all
 def note_missing_mutation(excerpt):
-    return remove_note(excerpt, seed=SEED)
+    return remove_intermediate_note(excerpt, seed=SEED)
     
 # note_not_expected. There are more notes than expected
 def note_not_expected_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=MAX_PITCH_DEFAULT, min_dur=MIN_DUR, max_dur=MAX_DUR, min_velocity=MIN_VELOCITY, max_velocity=MAX_VELOCITY):

@@ -14,6 +14,7 @@ def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=1
     Path("mutts").mkdir(exist_ok=True)
     output_filename = Path("mutts") / f"{save_name}.wav"
     wavfile.write(output_filename, sample_rate, audio_normalized)
+    return output_filename
 
 def load_midi_with_mido(midi_file_path, bpm=120):
     mid = mido.MidiFile(midi_file_path)

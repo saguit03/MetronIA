@@ -391,3 +391,51 @@ def offset_cut(
 
     degraded = post_process(degraded)
     return degraded
+
+@set_random_seed
+def remove_intermediate_note(excerpt, tries=TRIES_DEFAULT):
+    """
+    Remove one note from the given excerpt, except the first and last notes.
+    This function randomly selects a note from the excerpt (excluding the first and last) and removes it
+
+    Parameters
+    ----------
+    excerpt : df.DataFrame
+        An excerpt from a piece of music.
+
+    seed : int
+        A seed to be supplied to np.random.seed(). None leaves numpy's
+        random state unchanged.
+
+    tries : int
+        The number of times to try the degradation before giving up, in the case
+        that the degraded excerpt overlaps. This is not used, but we keep it for
+        consistency.
+
+    Returns
+    -------
+    degraded : df.DataFrame
+        A degradation of the excerpt, with one note removed, or None if
+        the degradations cannot be performed.
+    """
+    if excerpt.shape[0] == 0:
+        logging.warning("No notes to remove. Returning None.")
+        return None
+
+    degraded = pre_process(excerpt)
+    possible_notes = list(degraded.index)
+    # Exclude the first and last notes
+    possible_notes = possible_notes[1:-1]  # Exclude first and last notes
+    if not possible_notes:
+        logging.warning("No intermediate notes to remove. Returning None.")
+        return None
+    
+    # Sample a random note
+    note_index = choice(possible_notes)
+
+    # Remove that note
+    degraded = degraded.drop(note_index)
+
+    # No need to check for overlap
+    degraded = post_process(degraded, sort=False)
+    return degraded
