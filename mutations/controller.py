@@ -21,7 +21,7 @@ from mdtk.mutations import (
     remove_intermediate_note
 )
 
-from default_factors import (
+from mutations.config import (
     FASTER,
     A_LOT_FASTER,
     SLOWER,

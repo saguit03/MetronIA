@@ -7,12 +7,13 @@ from pathlib import Path
 import scipy.io.wavfile as wavfile
 import numpy as np
 from mdtk.utils import synthesize_from_note_df
+from mutations.config import MUTATIONS_MIDI_PATH
 
 def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-    Path("mutts").mkdir(exist_ok=True)
-    output_filename = Path("mutts") / f"{save_name}.wav"
+    Path(MUTATIONS_MIDI_PATH).mkdir(exist_ok=True)
+    output_filename = Path(MUTATIONS_MIDI_PATH) / f"{save_name}.wav"
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
 

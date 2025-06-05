@@ -33,3 +33,8 @@ NOTE_CUT_TOO_SOON = {
     "max_shift": 150
 }
 SEED = None
+
+MUTATIONS_MIDI_PATH = "mutts_midi"
+MUTATIONS_PLOTS_PATH = "mutts_plots"
+
+

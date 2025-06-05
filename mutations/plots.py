@@ -5,9 +5,11 @@ from matplotlib.collections import PatchCollection
 from matplotlib.ticker import MaxNLocator
 
 from mdtk.utils import plot_from_df
+from mutations.config import MUTATIONS_PLOTS_PATH
+
 def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
     """
-    Plotea el original y sus versiones degradadas y guarda el resultado en /plots/.
+    Guarda un gráfico comparativo de un fragmento original y sus modificaciones.
 
     Parameters
     ----------
@@ -36,8 +38,8 @@ def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
         plt.title(f"deg {ii + 1}")
 
     if save_name is not None:
-        Path("plots").mkdir(exist_ok=True)
-        fig_path = Path("plots") / f"{save_name}.png"
+        Path(MUTATIONS_PLOTS_PATH).mkdir(exist_ok=True)
+        fig_path = Path(MUTATIONS_PLOTS_PATH) / f"{save_name}.png"
         plt.savefig(fig_path, bbox_inches="tight")
 
     plt.close(fig)

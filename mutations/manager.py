@@ -2,12 +2,13 @@
 Gestión de mutaciones musicales usando clases para mejor organización y legibilidad.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional
 import pandas as pd
 from pathlib import Path
 
-from mutaciones import (
+from .results import MutationResult
+from .category import MutationCategory
+from mutations.controller import (
     pitch_shift_mutation,
     faster_tempo_mutation,
     a_lot_faster_tempo_mutation,
@@ -28,85 +29,6 @@ from mutaciones import (
     articulated_accentuated_mutation,
     tempo_fluctuation_mutation,
 )
-
-
-@dataclass
-class MutationResult:
-    """Representa el resultado de aplicar una mutación."""
-    name: str
-    description: str
-    function: Callable
-    excerpt: Optional[pd.DataFrame] = None
-    path: Optional[str] = None
-    success: bool = False
-    error: Optional[str] = None
-    
-    def apply(self, original_excerpt: pd.DataFrame) -> bool:
-        """
-        Aplica la mutación al excerpt original.
-        
-        Returns:
-            bool: True si la mutación fue exitosa, False en caso contrario.
-        """
-        try:
-            self.excerpt = self.function(original_excerpt)
-            if self.excerpt is not None:
-                self.success = True
-                return True
-            else:
-                self.success = False
-                self.error = "Mutation returned None"
-                return False
-        except Exception as e:
-            self.success = False
-            self.error = str(e)
-            self.excerpt = None
-            return False
-    
-    def set_path(self, path: str):
-        """Establece la ruta del archivo de audio generado."""
-        self.path = path
-    
-    def __str__(self):
-        status = "✓" if self.success else "✗"
-        return f"{status} {self.name}: {self.description}"
-
-
-@dataclass
-class MutationCategory:
-    """Representa una categoría de mutaciones."""
-    name: str
-    description: str
-    mutations: Dict[str, MutationResult] = field(default_factory=dict)
-    
-    def add_mutation(self, mutation: MutationResult):
-        """Añade una mutación a la categoría."""
-        self.mutations[mutation.name] = mutation
-    
-    def apply_all(self, original_excerpt: pd.DataFrame) -> Dict[str, bool]:
-        """
-        Aplica todas las mutaciones de la categoría.
-        
-        Returns:
-            Dict[str, bool]: Diccionario con el resultado de cada mutación.
-        """
-        results = {}
-        for name, mutation in self.mutations.items():
-            results[name] = mutation.apply(original_excerpt)
-        return results
-    
-    def get_successful_mutations(self) -> List[MutationResult]:
-        """Retorna solo las mutaciones que fueron exitosas."""
-        return [mut for mut in self.mutations.values() if mut.success]
-    
-    def get_failed_mutations(self) -> List[MutationResult]:
-        """Retorna solo las mutaciones que fallaron."""
-        return [mut for mut in self.mutations.values() if not mut.success]
-    
-    def __str__(self):
-        successful = len(self.get_successful_mutations())
-        total = len(self.mutations)
-        return f"{self.name}: {successful}/{total} mutaciones exitosas"
 
 
 class MutationManager:

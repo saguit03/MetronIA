@@ -1,51 +1,71 @@
-# Librosa Examples
+# MetronIA - Musical Performance Analysis System
+
+Sistema de análisis de interpretaciones musicales que utiliza técnicas de procesamiento de audio y aprendizaje automático para comparar grabaciones de referencia con interpretaciones en vivo.
+
+## Estructura del Proyecto
+
+### 📁 `analyzers/`
+Módulo modularizado para análisis de audio musical.
+- **Análisis de beat spectrum** con alineamiento DTW
+- **Detección de onsets** y errores de timing
+- **Comparación de tempo** y estructura musical
+- **Visualizaciones** especializadas para análisis
+
+### 📁 `audio/`
+Archivos de audio de prueba y referencia.
+- Grabaciones de referencia y en vivo
+- Archivos MIDI y MP3 para testing
+- Diferentes tempos y variaciones musicales
+
+### 📁 `mdtk/`
+Music Degradation Toolkit - Herramientas para degradación musical.
+- **Mutaciones** y degradaciones de audio
+- **Utilidades** para procesamiento MIDI
+- **Evaluación** de calidad musical
+- **Datasets** y modelos de PyTorch
+
+### 📁 `midi/`
+Archivos MIDI para análisis y procesamiento.
+- Partituras en formato MIDI
+- Material musical de referencia
+
+### 📁 `mutations/`
+Sistema modular de mutaciones musicales.
+- **Generación** de errores musicales controlados
+- **Categorización** de tipos de errores
+- **Gestión** centralizada de mutaciones
+- **Visualización** de comparaciones
+
+### 📁 `mutts/`
+Archivos generados por el sistema de mutaciones.
+- Audio con diferentes tipos de errores aplicados
+- Resultados de mutaciones específicas
+
+### 📁 `plots/`
+Gráficos y visualizaciones generadas.
+- Comparaciones de beat spectrum
+- Análisis de onsets y errores
+- Visualizaciones de resultados
+
+### 📁 `references/`
+Material de referencia y documentación.
+
+### 📁 `old/`
+Versiones anteriores y código legacy.
+
+## Archivos Principales
 
 TODO
 
-## How to load audio files
+## Uso Básico
 
-Load the audio file using `librosa.load()`.
+TODO
 
-## Beat tracking
-
-Example at `plot_beat_tracking.ipynb`. In this example, we demonstrate how to use the `librosa` library to perform beat tracking on an audio file with a time-varying tempo.
-
-### Static tempo
-
-```
-tempo, beats_static = librosa.beat.beat_track(y=y, sr=sr, units='time', trim=True)
-click_track = librosa.clicks(times=beats_static, sr=sr, click_freq=660, click_duration=0.25, length=len(y))
-print(f"Tempo estimate: {tempo[0]:.2f} BPM")
-Audio(data=y+click_track, rate=sr)
-```
-
-### Dynamic tempo
-
-```
-std_bpm = 4
-# tempo_dynamic = librosa.feature.tempo(y=y, sr=sr, aggregate=None, std_bpm=std_bpm)
-tightness = 10
-start_bpm = 125
-
-tempo, beats_dynamic = librosa.beat.beat_track(y=y, sr=sr, units='time',
-                                               tightness=tightness,
-                                               start_bpm=start_bpm,
-                                              #  bpm=tempo_dynamic,
-                                               trim=False)
-
-click_dynamic = librosa.clicks(times=beats_dynamic, sr=sr, click_freq=660,
-                               click_duration=0.25, length=len(y))
-
-Audio(data=y+click_dynamic, rate=sr)
-```
-
-
-## Music Synchronization with Dynamic Time Warping
-Example at `plot_music_sync.ipynb`. In this short tutorial, we demonstrate the use of dynamic time warping (DTW) for music synchronization which is implemented in `librosa`.
-
-### Steps
-1. Load the audio files using `librosa.load()`.
-2. Extract the chroma features using `librosa.feature.chroma_cqt()`.
-3. Align Chroma Sequences:
-   1. `librosa.sequence.dtw()`.
-   2. `librosa.frames_to_time()`.
+## Características
+TODO
+- ✅ **Análisis DTW** para alineamiento temporal
+- ✅ **Detección de onsets** con clasificación de errores
+- ✅ **Comparación de tempo** y estructura musical
+- ✅ **Sistema de mutaciones** para generación de errores
+- ✅ **Visualizaciones** interactivas y exportables
+- ✅ **Arquitectura modular** para fácil extensión

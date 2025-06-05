@@ -2,11 +2,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from IPython.display import Audio, display
 from tqdm import tqdm
-from mdtk.plots import save_plot_against_orig
+from mutations.plots import save_plot_against_orig
 from mdtk.utils import synthesize_from_note_df
 from midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio
 from pathlib import Path
-from mutations_manager import MutationManager
+from mutations.manager import MutationManager
 
 midi_file_path = "midi/Acordai-100.mid"
 midi_name = Path(midi_file_path).stem
