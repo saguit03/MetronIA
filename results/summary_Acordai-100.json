@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "midi_file": "midi/Acordai-100.mid",
+    "midi_name": "Acordai-100",
+    "total_mutations_attempted": 19,
+    "successful_mutations": 19,
+    "failed_mutations": 0,
+    "analyzed_mutations": 0
+  },
+  "categories": {
+    "pitch_errors": {
+      "description": "Errores de altura de las notas",
+      "total_mutations": 1,
+      "successful_mutations": 1
+    },
+    "tempo_errors": {
+      "description": "Errores relacionados con el tempo",
+      "total_mutations": 7,
+      "successful_mutations": 7
+    },
+    "timing_errors": {
+      "description": "Errores de timing de las notas",
+      "total_mutations": 4,
+      "successful_mutations": 4
+    },
+    "duration_errors": {
+      "description": "Errores de duración de las notas",
+      "total_mutations": 2,
+      "successful_mutations": 2
+    },
+    "note_errors": {
+      "description": "Errores de presencia de notas",
+      "total_mutations": 2,
+      "successful_mutations": 2
+    },
+    "articulation_errors": {
+      "description": "Errores de articulación",
+      "total_mutations": 3,
+      "successful_mutations": 3
+    }
+  },
+  "failed_mutations": []
+}

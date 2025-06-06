@@ -130,9 +130,54 @@ class MusicAnalyzer:
         print(f"  🕳️ Huecos grandes detectados: {len(gaps)}")
 
 
+    def extract_analysis_for_csv(self, beat_result: BeatSpectrumResult, onset_result: OnsetAnalysisResult,
+                                tempo_result: TempoAnalysisResult, segment_result: Dict,
+                                dtw_regular: bool, rhythm_errors: Tuple) -> Dict[str, Any]:
+        """
+        Extrae los resultados del análisis en formato para CSV.
+        
+        Returns:
+            Diccionario con los datos formateados para CSV
+        """
+        stats = onset_result.stats
+        repeats, gaps = rhythm_errors
+        
+        return {
+            # Beat Spectrum
+            'beat_spectrum_similar': 'Similar' if beat_result.is_similar else 'Diferencias significativas',
+            'beat_spectrum_max_difference': f"{beat_result.max_difference:.3f}",
+            
+            # Onsets
+            'onsets_correct': stats['correct'],
+            'onsets_early': stats['early'],
+            'onsets_late': stats['late'],
+            'onsets_missing': stats['missing'],
+            'onsets_extra': stats['extra'],
+            'onsets_precision': f"{stats['correct']/(stats['total_ref'] or 1)*100:.1f}%",
+            
+            # Tempo
+            'tempo_reference_bpm': f"{tempo_result.tempo_ref:.2f}",
+            'tempo_live_bpm': f"{tempo_result.tempo_live:.2f}",
+            'tempo_difference_bpm': f"{tempo_result.difference:.2f}",
+            'tempo_similar': 'Tempo similar' if tempo_result.is_similar else 'Diferencia significativa de tempo',
+            
+            # Estructura
+            'structure_measures_ref': segment_result['measures_ref'],
+            'structure_measures_live': segment_result['measures_live'],
+            'structure_compatible': 'Estructura compatible' if segment_result['overall_compatible'] else 'Estructura incompatible',
+            
+            # DTW
+            'dtw_regular': 'Camino DTW regular' if dtw_regular else 'Camino DTW con desviaciones anómalas',
+            
+            # Patrones rítmicos
+            'rhythm_repeats': len(repeats),
+            'rhythm_large_gaps': len(gaps)
+        }
+
+
 # Función de conveniencia para análisis rápido
 def analyze_performance(reference_path: str, live_path: str, save_name: Optional[str] = None, 
-                       config: Optional[AudioAnalysisConfig] = None) -> Dict[str, Any]:
+                       config: Optional[AudioAnalysisConfig] = None, verbose: bool = True) -> Dict[str, Any]:
     """
     Función de conveniencia para realizar un análisis completo de interpretación.
     
@@ -141,12 +186,13 @@ def analyze_performance(reference_path: str, live_path: str, save_name: Optional
         live_path: Ruta al archivo de audio en vivo
         save_name: Nombre base para guardar gráficos (opcional)
         config: Configuración de análisis (opcional)
+        verbose: Si mostrar resultados por pantalla (opcional)
     
     Returns:
         Diccionario con todos los resultados del análisis
     """
     analyzer = MusicAnalyzer(config)
-    return analyzer.comprehensive_analysis(reference_path, live_path, save_name)
+    return analyzer.comprehensive_analysis(reference_path, live_path, save_name, verbose)
 
 
 # Función compatible con el script original

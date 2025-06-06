@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from typing import List, Tuple, Optional
 from .config import AudioAnalysisConfig
 from .results import BeatSpectrumResult, OnsetAnalysisResult
-
+from pathlib import Path
+from analyzers.config import ANALYSIS_PLOTS_PATH
 
 class AudioVisualizer:
     """Visualizador de análisis de audio."""
@@ -31,7 +32,9 @@ class AudioVisualizer:
         plt.tight_layout()
         
         if save_name:
-            plt.savefig(f'plt_beat_spectrum_comparisons_{save_name}.png', dpi=self.config.plot_dpi)
+            Path(ANALYSIS_PLOTS_PATH).mkdir(exist_ok=True)
+            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"{save_name}.png"
+            plt.savefig(fig_path, dpi=self.config.plot_dpi)
         
         if show:
             plt.show()
