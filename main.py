@@ -157,8 +157,7 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
                 config=None,  # Usar configuración por defecto
                 verbose=False  # No mostrar resultados por pantalla
             )
-            
-            # Extraer datos para CSV
+              # Extraer datos para CSV con información de mutación
             analyzer = MusicAnalyzer()
             csv_row = analyzer.extract_analysis_for_csv(
                 beat_result=analysis_result['beat_spectrum'],
@@ -166,13 +165,11 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
                 tempo_result=analysis_result['tempo'],
                 segment_result=analysis_result['segments'],
                 dtw_regular=analysis_result['dtw_regular'],
-                rhythm_errors=analysis_result['rhythm_errors']
+                rhythm_errors=analysis_result['rhythm_errors'],
+                mutation_category=category_name,
+                mutation_name=mutation_name
             )
             
-            # Añadir información de la mutación
-            csv_row['mutation_category'] = category_name
-            csv_row['mutation_name'] = mutation_name
-            csv_row['mutation_description'] = mutation.description
             csv_data.append(csv_row)
             
         except Exception as e:

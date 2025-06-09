@@ -44,10 +44,10 @@ class MusicAnalyzer:
         dtw_deviations, dtw_regular = self.dtw_aligner.evaluate_dtw_path(wp)
         
         # Análisis de beat spectrum
-        beat_result = self.beat_spectrum_analyzer.analyze_beat_spectrum(ref_feat, aligned_live_feat)
-        
-        # Análisis de onsets
-        onset_result = self.onset_analyzer.compare_onsets_detailed(audio_ref, audio_live, sr)
+        beat_result = self.beat_spectrum_analyzer.analyze_beat_spectrum(ref_feat, aligned_live_feat)        # Análisis de onsets con alineamiento DTW
+        onset_result = self.onset_analyzer.compare_onsets_detailed(
+            audio_ref, audio_live, sr, wp, self.config.hop_length
+        )
         rhythm_errors = self.onset_analyzer.detect_rhythm_pattern_errors(
             onset_result.onsets_ref, onset_result.onsets_live
         )
@@ -128,21 +128,34 @@ class MusicAnalyzer:
         print(f"\n🎶 PATRONES RÍTMICOS:")
         print(f"  🔁 Repeticiones detectadas: {len(repeats)}")
         print(f"  🕳️ Huecos grandes detectados: {len(gaps)}")
-
-
     def extract_analysis_for_csv(self, beat_result: BeatSpectrumResult, onset_result: OnsetAnalysisResult,
                                 tempo_result: TempoAnalysisResult, segment_result: Dict,
-                                dtw_regular: bool, rhythm_errors: Tuple) -> Dict[str, Any]:
+                                dtw_regular: bool, rhythm_errors: Tuple, 
+                                mutation_category: str = "", mutation_name: str = "") -> Dict[str, Any]:
         """
         Extrae los resultados del análisis en formato para CSV.
         
+        Args:
+            beat_result: Resultado del análisis de beat spectrum
+            onset_result: Resultado del análisis de onsets
+            tempo_result: Resultado del análisis de tempo
+            segment_result: Resultado del análisis de segmentos
+            dtw_regular: Si el camino DTW es regular
+            rhythm_errors: Errores rítmicos detectados
+            mutation_category: Categoría de la mutación
+            mutation_name: Nombre de la mutación
+            
         Returns:
-            Diccionario con los datos formateados para CSV
+            Diccionario con los datos formateados para CSV (columnas de mutación primero)
         """
         stats = onset_result.stats
         repeats, gaps = rhythm_errors
         
         return {
+            # Información de mutación (primeras columnas)
+            'mutation_category': mutation_category,
+            'mutation_name': mutation_name,
+            
             # Beat Spectrum
             'beat_spectrum_similar': 'Similar' if beat_result.is_similar else 'Diferencias significativas',
             'beat_spectrum_max_difference': f"{beat_result.max_difference:.3f}",
@@ -219,9 +232,8 @@ def show_beat_spectrum(reference_path: str, live_path: str,
         print("======== Comparación de Beat Spectrums ========")
         status = "✅ Beat spectrum similar." if beat_result.is_similar else "⚠️ Diferencias significativas en el beat spectrum."
         print(status)
-        
-        # Onsets básicos
-        onsets_data = analyzer.onset_analyzer.compare_onsets_basic(audio_ref, audio_live, sr)
+          # Onsets básicos con alineamiento DTW
+        onsets_data = analyzer.onset_analyzer.compare_onsets_basic(audio_ref, audio_live, sr, wp)
         onsets_ref, onsets_live, matched, unmatched_ref, unmatched_live = onsets_data
         print(f"✅ Onsets emparejados: {len(matched)}")
         print(f"❌ Notas faltantes (en vivo): {len(unmatched_ref)}")
@@ -244,17 +256,17 @@ def show_beat_spectrum(reference_path: str, live_path: str,
         print(f"🎵 Compases en referencia: {segment_result['measures_ref']}")
         print(f"🎵 Compases en vivo: {segment_result['measures_live']}")
         if segment_result['overall_compatible']:
-            print("✅ Estructura de compases compatible.")
+                        print("✅ Estructura de compases compatible.")
         else:
             print("⚠️ Desajuste en la estructura de compases.")
     
     if comparacion_2:
         print("======== Comparación de onsets y errores rítmicos ========")
-        onsets_data = analyzer.onset_analyzer.compare_onsets_basic(audio_ref, audio_live, sr)
+        onsets_data = analyzer.onset_analyzer.compare_onsets_basic(audio_ref, audio_live, sr, wp)
         analyzer.visualizer.plot_onset_errors_basic(*onsets_data, save_name=nombre)
         
         print("======== Análisis detallado de onsets ========")
-        onset_result = analyzer.onset_analyzer.compare_onsets_detailed(audio_ref, audio_live, sr)
+        onset_result = analyzer.onset_analyzer.compare_onsets_detailed(audio_ref, audio_live, sr, wp)
         analyzer.visualizer.plot_onset_errors_detailed(onset_result, save_name=nombre)
         
         stats = onset_result.stats
