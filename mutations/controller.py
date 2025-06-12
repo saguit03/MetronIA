@@ -85,7 +85,7 @@ def note_played_too_soon_onset_mutation(excerpt, min_shift=NOTE_PLAYED_TOO_SOON[
     
 # note_played_too_late. Played AFTER it should
 def note_played_too_late_onset_mutation(excerpt, min_shift=NOTE_PLAYED_TOO_LATE["min_shift"], max_shift=NOTE_PLAYED_TOO_LATE["max_shift"], align_onset=False):
-    return time_shift_mutation(excerpt, min_shift=min_shift, max_shift=max_shift, align_onset=align_onset, seed=SEED)
+    return onset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, align_onset=align_onset, seed=SEED)
     
 # note_held_too_long. A note is played longer than expected
 def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"], max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):

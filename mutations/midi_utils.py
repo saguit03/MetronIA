@@ -1,4 +1,3 @@
-
 import pretty_midi
 import mido
 import pandas as pd
@@ -7,13 +6,13 @@ from pathlib import Path
 import scipy.io.wavfile as wavfile
 import numpy as np
 from mdtk.utils import synthesize_from_note_df
-from mutations.config import MUTATIONS_MIDI_PATH
+from mutations.config import MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
 
 def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-    Path(MUTATIONS_MIDI_PATH).mkdir(exist_ok=True)
-    output_filename = Path(MUTATIONS_MIDI_PATH) / f"{save_name}.wav"
+    Path(MUTATIONS_AUDIO_PATH).mkdir(exist_ok=True)
+    output_filename = Path(MUTATIONS_AUDIO_PATH) / f"{save_name}.wav"
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
 
@@ -75,3 +74,86 @@ def load_midi_with_pretty_midi(midi_file_path):
     df = df.sort_values('onset').reset_index(drop=True)
     
     return df
+
+def save_excerpt_in_midi(excerpt, save_name, tempo=120):
+    """
+    Guarda un excerpt (DataFrame con notas) como archivo MIDI.
+    
+    Parameters
+    ----------
+    excerpt : pd.DataFrame
+        DataFrame con columnas: onset, pitch, dur, velocity, track
+    save_name : str
+        Nombre del archivo (sin extensión)
+    tempo : int
+        Tempo en BPM para el archivo MIDI (default: 120)
+    
+    Returns
+    -------
+    Path
+        Ruta del archivo MIDI guardado
+    """
+    # Crear directorio si no existe
+    Path(MUTATIONS_MIDI_PATH).mkdir(exist_ok=True)
+    output_filename = Path(MUTATIONS_MIDI_PATH) / f"{save_name}.mid"
+    
+    # Crear objeto PrettyMIDI
+    midi_data = pretty_midi.PrettyMIDI(initial_tempo=tempo)
+    
+    # Agrupar notas por track
+    tracks = excerpt.groupby('track') if 'track' in excerpt.columns else [('default', excerpt)]
+    
+    for track_id, track_notes in tracks:
+        # Crear instrumento (Piano por defecto)
+        instrument = pretty_midi.Instrument(program=0, name=f"Track_{track_id}")
+        
+        for _, note_row in track_notes.iterrows():
+            # Convertir milisegundos a segundos
+            start_time = note_row['onset'] / 1000.0
+            duration = note_row['dur'] / 1000.0
+            end_time = start_time + duration
+            
+            # Crear nota MIDI
+            note = pretty_midi.Note(
+                velocity=int(note_row['velocity']),
+                pitch=int(note_row['pitch']),
+                start=start_time,
+                end=end_time
+            )
+            
+            instrument.notes.append(note)
+        
+        # Agregar instrumento al MIDI
+        midi_data.instruments.append(instrument)
+    
+    # Guardar archivo
+    midi_data.write(str(output_filename))
+    
+    return output_filename
+
+def save_excerpt_complete(excerpt, save_name, soundfont_path=None, sample_rate=16000, tempo=120):
+    """
+    Guarda un excerpt tanto como archivo de audio (WAV) como archivo MIDI.
+    
+    Parameters
+    ----------
+    excerpt : pd.DataFrame
+        DataFrame con columnas: onset, pitch, dur, velocity, track
+    save_name : str
+        Nombre base del archivo (sin extensión)
+    soundfont_path : str, optional
+        Ruta al soundfont para síntesis de audio
+    sample_rate : int
+        Sample rate para el archivo de audio (default: 16000)
+    tempo : int
+        Tempo en BPM para el archivo MIDI (default: 120)
+    
+    Returns
+    -------
+    tuple
+        Tupla con (ruta_audio, ruta_midi)
+    """
+    audio_path = save_excerpt_in_audio(excerpt, save_name, soundfont_path, sample_rate)
+    midi_path = save_excerpt_in_midi(excerpt, save_name, tempo)
+    
+    return audio_path, midi_path

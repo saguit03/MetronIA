@@ -33,7 +33,7 @@ class AudioVisualizer:
         
         if save_name:
             Path(ANALYSIS_PLOTS_PATH).mkdir(exist_ok=True)
-            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"{save_name}.png"
+            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"{save_name}_dtw.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
         
         if show:
@@ -65,7 +65,7 @@ class AudioVisualizer:
         
         if save_name:
             Path(ANALYSIS_PLOTS_PATH).mkdir(exist_ok=True)
-            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"plt_onsets_errors_comparisons_{save_name}.png"
+            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"{save_name}_basic_onsets.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
         if show:
             plt.show()
@@ -99,7 +99,7 @@ class AudioVisualizer:
         
         if save_name:
             Path(ANALYSIS_PLOTS_PATH).mkdir(exist_ok=True)
-            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"plt_onsets_detailed_comparisons_{save_name}.png"
+            fig_path = Path(ANALYSIS_PLOTS_PATH) / f"{save_name}_detailed_onsets.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
         if show:
             plt.show()

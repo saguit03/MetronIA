@@ -83,7 +83,6 @@ class OnsetAnalyzer:
             onsets_live_aligned = self.align_onsets_with_dtw(onsets_live, wp, hop_length, sr)
         else:
             onsets_live_aligned = onsets_live
-        
         matched = []
         unmatched_ref = []
         unmatched_live = list(onsets_live_aligned)
@@ -94,7 +93,10 @@ class OnsetAnalyzer:
                 continue
                 
             diffs = np.abs(np.array(unmatched_live) - onset)
-            if np.min(diffs) < self.config.onset_margin:
+            # Usar margen amplio para matching básico (4x el margen base)
+            matching_margin = self.config.onset_margin * 4
+            
+            if np.min(diffs) < matching_margin:
                 idx = np.argmin(diffs)
                 matched.append((onset, unmatched_live[idx]))
                 unmatched_live.pop(idx)
@@ -102,10 +104,12 @@ class OnsetAnalyzer:
                 unmatched_ref.append(onset)
         
         return onsets_ref, onsets_live, matched, unmatched_ref, unmatched_live
+    
     def compare_onsets_detailed(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int,
                                wp: Optional[np.ndarray] = None, hop_length: int = 512) -> OnsetAnalysisResult:
         """
         Análisis detallado de onsets con clasificación de errores y alineamiento DTW opcional.
+        Usa un algoritmo contextual que considera el orden temporal de las notas.
         
         Args:
             audio_ref: Audio de referencia
@@ -123,43 +127,144 @@ class OnsetAnalyzer:
         else:
             onsets_live_aligned = onsets_live
         
+        return self._smart_onset_matching(onsets_ref, onsets_live_aligned)
+    
+    def _smart_onset_matching(self, onsets_ref: np.ndarray, onsets_live: np.ndarray) -> OnsetAnalysisResult:
+        """
+        Algoritmo inteligente de matching de onsets que considera el contexto temporal.
+        """
         matched_correct = []
         matched_early = []
         matched_late = []
         unmatched_ref = []
-        unmatched_live = list(onsets_live_aligned)
+        unmatched_live = list(onsets_live)
         
-        for onset in onsets_ref:
+        ref_idx = 0
+        
+        while ref_idx < len(onsets_ref):
+            current_ref_onset = onsets_ref[ref_idx]
+            
             if not unmatched_live:
-                unmatched_ref.append(onset)
+                # No quedan onsets en vivo, el resto son faltantes
+                unmatched_ref.extend(onsets_ref[ref_idx:])
+                break
+            
+            # Calcular ventana de búsqueda dinámica
+            search_window = self._calculate_search_window(onsets_ref, ref_idx)
+            
+            # Buscar candidatos dentro de la ventana
+            candidates = self._find_candidates_in_window(
+                current_ref_onset, unmatched_live, search_window
+            )
+            
+            if not candidates:
+                # No hay candidatos, pero esperamos a ver la siguiente nota de referencia
+                if ref_idx < len(onsets_ref) - 1:
+                    # Verificar si hay un onset en vivo que podría corresponder a la siguiente nota
+                    next_ref_onset = onsets_ref[ref_idx + 1]
+                    next_candidates = self._find_candidates_in_window(
+                        next_ref_onset, unmatched_live, search_window
+                    )
+                    
+                    if next_candidates:
+                        # Hay candidato para la siguiente, la actual probablemente falta
+                        unmatched_ref.append(current_ref_onset)
+                        ref_idx += 1
+                        continue
+                
+                # No hay candidatos ni para esta ni para la siguiente
+                unmatched_ref.append(current_ref_onset)
+                ref_idx += 1
                 continue
             
-            diffs = np.array(unmatched_live) - onset
-            abs_diffs = np.abs(diffs)
-            min_idx = np.argmin(abs_diffs)
-            min_diff = diffs[min_idx]
+            # Seleccionar el mejor candidato
+            best_candidate_idx, best_live_onset = self._select_best_candidate(
+                current_ref_onset, candidates, unmatched_live
+            )
             
-            if abs_diffs[min_idx] <= self.config.onset_margin:
-                matched_correct.append((onset, unmatched_live[min_idx]))
-                unmatched_live.pop(min_idx)
-            elif abs_diffs[min_idx] <= 2 * self.config.onset_margin:
-                if min_diff < 0:  # onset anticipado
-                    matched_early.append((onset, unmatched_live[min_idx]))
-                else:  # onset retrasado
-                    matched_late.append((onset, unmatched_live[min_idx]))
-                unmatched_live.pop(min_idx)
-            else:
-                unmatched_ref.append(onset)
+            # Clasificar el match
+            time_diff = best_live_onset - current_ref_onset
+            abs_diff = abs(time_diff)
+            
+            # Margen estricto para correcto
+            strict_margin = self.config.onset_margin
+            
+            if abs_diff <= strict_margin:
+                matched_correct.append((current_ref_onset, best_live_onset))
+            elif time_diff < 0:  # Adelantado
+                matched_early.append((current_ref_onset, best_live_onset))
+            else:  # Atrasado
+                matched_late.append((current_ref_onset, best_live_onset))
+            
+            # Remover el onset usado
+            unmatched_live.pop(best_candidate_idx)
+            ref_idx += 1
         
         return OnsetAnalysisResult(
             onsets_ref=onsets_ref,
-            onsets_live=onsets_live_aligned,  # Usar los onsets alineados
+            onsets_live=onsets_live,
             matched_correct=matched_correct,
             matched_early=matched_early,
             matched_late=matched_late,
             unmatched_ref=unmatched_ref,
             unmatched_live=unmatched_live
         )
+    
+    def _calculate_search_window(self, onsets_ref: np.ndarray, ref_idx: int) -> float:
+        """
+        Calcula la ventana de búsqueda dinámica basada en el contexto musical.
+        """
+        base_window = self.config.onset_margin * 8  # Ventana base amplia
+        
+        if ref_idx == 0:
+            # Primera nota: usar ventana base
+            return base_window
+        
+        if ref_idx >= len(onsets_ref) - 1:
+            # Última nota: usar ventana base
+            return base_window
+        
+        # Calcular intervalo con la nota anterior y siguiente
+        prev_interval = onsets_ref[ref_idx] - onsets_ref[ref_idx - 1]
+        next_interval = onsets_ref[ref_idx + 1] - onsets_ref[ref_idx]
+        
+        # La ventana es proporcional al intervalo más pequeño
+        min_interval = min(prev_interval, next_interval)
+        dynamic_window = min_interval * 0.5  # 50% del intervalo más pequeño
+        
+        # Usar el máximo entre ventana base y dinámica, con un límite superior
+        return min(max(base_window, dynamic_window), 0.5)  # Máximo 500ms
+    
+    def _find_candidates_in_window(self, ref_onset: float, live_onsets: list, 
+                                  window: float) -> list:
+        """
+        Encuentra candidatos de onsets en vivo dentro de la ventana de búsqueda.
+        """
+        candidates = []
+        for i, live_onset in enumerate(live_onsets):
+            if abs(live_onset - ref_onset) <= window:
+                candidates.append((i, live_onset))
+        return candidates
+    
+    def _select_best_candidate(self, ref_onset: float, candidates: list, 
+                              live_onsets: list) -> tuple:
+        """
+        Selecciona el mejor candidato basado en proximidad temporal.
+        """
+        if len(candidates) == 1:
+            return candidates[0]
+        
+        # Seleccionar el más cercano temporalmente
+        best_idx = 0
+        best_diff = abs(candidates[0][1] - ref_onset)
+        
+        for i, (idx, live_onset) in enumerate(candidates):
+            diff = abs(live_onset - ref_onset)
+            if diff < best_diff:
+                best_diff = diff
+                best_idx = i
+        
+        return candidates[best_idx]
     
     def detect_rhythm_pattern_errors(self, onsets_ref: np.ndarray, onsets_live: np.ndarray, 
                                    threshold: float = 0.1) -> Tuple[np.ndarray, np.ndarray]:

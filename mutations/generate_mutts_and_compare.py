@@ -4,7 +4,7 @@ from IPython.display import Audio, display
 from tqdm import tqdm
 from mutations.plots import save_plot_against_orig
 from mdtk.utils import synthesize_from_note_df
-from midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio
+from midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_complete
 from pathlib import Path
 from mutations.manager import MutationManager
 
@@ -38,7 +38,7 @@ for category_name, category in mutation_manager.categories.items():
                     list_of_diff_excerpts=[mutation.excerpt], 
                     save_name=file_name
                 )
-                audio_path = save_excerpt_in_audio(
+                audio_path, midi_path = save_excerpt_complete(
                     excerpt=mutation.excerpt, 
                     save_name=file_name
                 )

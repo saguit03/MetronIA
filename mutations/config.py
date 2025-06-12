@@ -34,7 +34,8 @@ NOTE_CUT_TOO_SOON = {
 }
 SEED = None
 
-MUTATIONS_MIDI_PATH = "mutts_midi"
+MUTATIONS_AUDIO_PATH = "mutts_audios"
+MUTATIONS_MIDI_PATH = "mutts_midis"
 MUTATIONS_PLOTS_PATH = "mutts_plots"
 
 
