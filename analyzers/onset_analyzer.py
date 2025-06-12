@@ -4,16 +4,113 @@ Analizador de onsets musicales para detección de errores de timing.
 
 import numpy as np
 import librosa
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from .config import AudioAnalysisConfig
 from .results import OnsetAnalysisResult
 
 
 class OnsetAnalyzer:
-    """Analizador de onsets musicales."""
+    """Analizador de onsets musicales con análisis basado en tempo."""
     
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
+    
+    def calculate_musical_duration(self, tempo: float, note_type: str = 'sixteenth') -> float:
+        """
+        Calcula la duración de una nota musical en segundos basada en el tempo.
+        
+        Args:
+            tempo: Tempo en BPM (beats per minute)
+            note_type: Tipo de nota ('whole', 'half', 'quarter', 'eighth', 'sixteenth')
+            
+        Returns:
+            Duración en segundos
+        """
+        # Duración de una negra en segundos
+        quarter_note_duration = 60.0 / tempo
+        
+        note_values = {
+            'whole': 4.0,      # redonda
+            'half': 2.0,       # blanca
+            'quarter': 1.0,    # negra
+            'eighth': 0.5,     # corchea
+            'sixteenth': 0.25  # semicorchea
+        }
+        
+        if note_type not in note_values:
+            note_type = 'sixteenth'  # default: usar la subdivisión más pequeña
+            
+        duration = quarter_note_duration * note_values[note_type]
+        return duration
+    
+    def detect_smallest_subdivision(self, onsets: np.ndarray, tempo: float) -> str:
+        """
+        Detecta la subdivisión musical más pequeña presente en una secuencia de onsets.
+        
+        Args:
+            onsets: Array de tiempos de onsets en segundos
+            tempo: Tempo en BPM
+            
+        Returns:
+            Tipo de nota que representa la subdivisión más pequeña
+        """
+        if len(onsets) < 2:
+            return 'sixteenth'  # default
+        
+        # Calcular intervalos entre onsets consecutivos
+        intervals = np.diff(onsets)
+        
+        # Calcular duraciones de diferentes tipos de notas
+        quarter_duration = 60.0 / tempo
+        note_durations = {
+            'quarter': quarter_duration,
+            'eighth': quarter_duration * 0.5,
+            'sixteenth': quarter_duration * 0.25,
+        }
+        
+        # Encontrar el intervalo más pequeño significativo (ignorar valores muy pequeños)
+        min_significant_interval = np.min(intervals[intervals > 0.05])  # Ignorar intervalos < 50ms
+        
+        # Determinar qué tipo de nota se aproxima más al intervalo mínimo
+        best_match = 'sixteenth'
+        best_diff = float('inf')
+        
+        for note_type, duration in note_durations.items():
+            diff = abs(min_significant_interval - duration)
+            if diff < best_diff:
+                best_diff = diff
+                best_match = note_type
+        
+        return best_match
+    
+    def get_tempo_based_margins(self, tempo: float, subdivision: str = None) -> Tuple[float, float]:
+        """
+        Calcula márgenes de análisis basados en el tempo y la subdivisión musical.
+        
+        Args:
+            tempo: Tempo en BPM
+            subdivision: Subdivisión a usar ('sixteenth', 'eighth', etc.)
+            
+        Returns:
+            Tupla con (margen_estricto, margen_amplio) en segundos
+        """
+        if subdivision is None:
+            subdivision = 'sixteenth'  # Usar la subdivisión más pequeña por defecto
+            
+        # Calcular duración de la subdivisión
+        subdivision_duration = self.calculate_musical_duration(tempo, subdivision)
+        
+        # Margen estricto: 10% de la duración de la subdivisión
+        strict_margin = subdivision_duration * 0.1
+        
+        # Margen amplio: 25% de la duración de la subdivisión
+        wide_margin = subdivision_duration * 0.25
+        
+        # Aplicar límites mínimos y máximos razonables
+        strict_margin = max(0.010, min(strict_margin, 0.050))  # Entre 10ms y 50ms
+        wide_margin = max(0.025, min(wide_margin, 0.150))     # Entre 25ms y 150ms
+        
+        return strict_margin, wide_margin
     
     def detect_onsets(self, audio: np.ndarray, sr: int) -> np.ndarray:
         """Detecta onsets en el audio."""
@@ -62,11 +159,13 @@ class OnsetAnalyzer:
             aligned_time = librosa.frames_to_time(aligned_frame, sr=sr, hop_length=hop_length)
             aligned_onsets.append(aligned_time)
         
-        return np.array(aligned_onsets)
+        return np.array(aligned_onsets)    
+    
     def compare_onsets_basic(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int, 
-                            wp: Optional[np.ndarray] = None, hop_length: int = 512) -> Tuple:
+                            wp: Optional[np.ndarray] = None, hop_length: int = 512, 
+                            tempo: Optional[float] = None) -> Tuple:
         """
-        Comparación básica de onsets con alineamiento DTW opcional.
+        Comparación básica de onsets con alineamiento DTW opcional y márgenes basados en tempo.
         
         Args:
             audio_ref: Audio de referencia
@@ -74,6 +173,7 @@ class OnsetAnalyzer:
             sr: Sample rate
             wp: Camino DTW opcional para alineamiento
             hop_length: Hop length para conversión tiempo-frame
+            tempo: Tempo en BPM para calcular márgenes musicales
         """
         onsets_ref = self.detect_onsets(audio_ref, sr)
         onsets_live = self.detect_onsets(audio_live, sr)
@@ -83,9 +183,18 @@ class OnsetAnalyzer:
             onsets_live_aligned = self.align_onsets_with_dtw(onsets_live, wp, hop_length, sr)
         else:
             onsets_live_aligned = onsets_live
+            
         matched = []
         unmatched_ref = []
         unmatched_live = list(onsets_live_aligned)
+        
+        # Calcular margen basado en tempo si está disponible
+        if tempo is not None:
+            subdivision = self.detect_smallest_subdivision(onsets_ref, tempo)
+            _, matching_margin = self.get_tempo_based_margins(tempo, subdivision)
+        else:
+            # Fallback al margen fijo multiplicado
+            matching_margin = self.config.onset_margin * 4
         
         for onset in onsets_ref:
             if not unmatched_live:
@@ -93,8 +202,6 @@ class OnsetAnalyzer:
                 continue
                 
             diffs = np.abs(np.array(unmatched_live) - onset)
-            # Usar margen amplio para matching básico (4x el margen base)
-            matching_margin = self.config.onset_margin * 4
             
             if np.min(diffs) < matching_margin:
                 idx = np.argmin(diffs)
@@ -280,3 +387,111 @@ class OnsetAnalyzer:
         large_gaps_live = np.where(intervals_live > avg_interval_ref + threshold)[0]
         
         return repeats_live, large_gaps_live
+    
+    def compare_onsets_without_alignment(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
+                                       sr: int, reference_tempo: Optional[float] = None) -> OnsetAnalysisResult:
+        """
+        Análisis de onsets SIN alineamiento DTW para preservar errores de timing reales.
+        Usa márgenes basados en tempo para mayor precisión musical.
+        
+        Args:
+            audio_ref: Audio de referencia
+            audio_live: Audio en vivo
+            sr: Sample rate
+            reference_tempo: Tempo conocido en BPM (opcional)
+            
+        Returns:
+            OnsetAnalysisResult con análisis detallado
+        """
+        # Detectar onsets en ambos audios
+        onsets_ref = self.detect_onsets(audio_ref, sr)
+        onsets_live = self.detect_onsets(audio_live, sr)
+        
+        # Si no se proporciona tempo, estimarlo del audio de referencia
+        if reference_tempo is None:
+            from . import tempo_analyzer
+            tempo_est = tempo_analyzer.TempoAnalyzer(self.config)
+            reference_tempo = tempo_est.extract_tempo(audio_ref, sr)
+        
+        # Detectar subdivisión musical más pequeña para ajustar márgenes
+        subdivision = self.detect_smallest_subdivision(onsets_ref, reference_tempo)
+        strict_margin, wide_margin = self.get_tempo_based_margins(reference_tempo, subdivision)
+        
+        # Usar algoritmo de matching inteligente con márgenes musicales
+        result = self._smart_onset_matching_with_tempo_margins(
+            onsets_ref, onsets_live, reference_tempo, strict_margin, wide_margin
+        )
+        
+        return result
+    
+    def _smart_onset_matching_with_tempo_margins(self, onsets_ref: np.ndarray, onsets_live: np.ndarray,
+                                               tempo: float, strict_margin: float, 
+                                               wide_margin: float) -> OnsetAnalysisResult:
+        """
+        Algoritmo de matching con márgenes basados en tempo musical.
+        
+        Args:
+            onsets_ref: Onsets de referencia
+            onsets_live: Onsets en vivo (sin alinear)
+            tempo: Tempo en BPM
+            strict_margin: Margen estricto para onsets "correctos"
+            wide_margin: Margen amplio para matching general
+        """
+        matched_correct = []
+        matched_early = []
+        matched_late = []
+        unmatched_ref = []
+        unmatched_live = list(onsets_live)
+        
+        ref_idx = 0
+        
+        while ref_idx < len(onsets_ref):
+            current_ref_onset = onsets_ref[ref_idx]
+            
+            if not unmatched_live:
+                # No quedan onsets en vivo, el resto son faltantes
+                unmatched_ref.extend(onsets_ref[ref_idx:])
+                break
+            
+            # Buscar candidatos dentro del margen amplio
+            candidates = []
+            for i, live_onset in enumerate(unmatched_live):
+                if abs(live_onset - current_ref_onset) <= wide_margin:
+                    candidates.append((i, live_onset))
+            
+            if not candidates:
+                # No hay candidatos cercanos, esta nota falta
+                unmatched_ref.append(current_ref_onset)
+                ref_idx += 1
+                continue
+            
+            # Seleccionar el candidato más cercano
+            best_candidate_idx, best_live_onset = min(
+                candidates, key=lambda x: abs(x[1] - current_ref_onset)
+            )
+            
+            # Clasificar según timing
+            time_diff = best_live_onset - current_ref_onset
+            abs_diff = abs(time_diff)
+            
+            if abs_diff <= strict_margin:
+                # Onset correcto (dentro del margen estricto)
+                matched_correct.append((current_ref_onset, best_live_onset))
+            elif time_diff < 0:  # Adelantado
+                matched_early.append((current_ref_onset, best_live_onset))
+            else:  # Atrasado
+                matched_late.append((current_ref_onset, best_live_onset))
+            
+            # Remover el onset usado
+            unmatched_live.pop(best_candidate_idx)
+            ref_idx += 1
+        
+        return OnsetAnalysisResult(
+            onsets_ref=onsets_ref,
+            onsets_live=onsets_live,  # Mantenemos los originales sin alinear
+            matched_correct=matched_correct,
+            matched_early=matched_early,
+            matched_late=matched_late,
+            unmatched_ref=unmatched_ref,
+            unmatched_live=unmatched_live
+        )

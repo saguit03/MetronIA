@@ -32,39 +32,62 @@ class MusicAnalyzer:
         reference_audio, sr = librosa.load(reference_path)
         live_audio, _ = librosa.load(live_path, sr=sr)  # Usar mismo sr
         return reference_audio, live_audio, sr
-    
     def comprehensive_analysis(self, reference_path: str, live_path: str, 
-                             save_name: Optional[str] = None, verbose: bool = True) -> Dict[str, Any]:
-        """Realiza un análisis completo de las interpretaciones."""
-        # Cargar audios
+                             save_name: Optional[str] = None, verbose: bool = True,
+                             reference_tempo: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Realiza un análisis completo de las interpretaciones.
+        
+        Args:
+            reference_path: Ruta al audio de referencia
+            live_path: Ruta al audio en vivo
+            save_name: Nombre para guardar gráficos (opcional)
+            verbose: Si mostrar resultados por pantalla
+            reference_tempo: Tempo conocido del MIDI original (opcional, para análisis más robusto)
+        """       
+         # Cargar audios
         audio_ref, audio_live, sr = self.load_audio_files(reference_path, live_path)
         
-        # Alineamiento DTW
-        ref_feat, aligned_live_feat, wp = self.dtw_aligner.align_features(audio_ref, audio_live, sr)
-        dtw_deviations, dtw_regular = self.dtw_aligner.evaluate_dtw_path(wp)
+        # ========== ESTRATEGIA DE ALINEAMIENTO SEPARADO ==========
+        # Usar el nuevo método que separa el análisis:
+        # - Beat spectrum: CON alineamiento DTW (para comparar patrones rítmicos globales)
+        # - Onsets: SIN alineamiento DTW (para detectar errores de timing reales)
+        ref_feat, aligned_live_feat_for_beat, wp, unaligned_live_feat = \
+            self.dtw_aligner.align_features_for_tempo_comparison(audio_ref, audio_live, sr)
         
-        # Análisis de beat spectrum
-        beat_result = self.beat_spectrum_analyzer.analyze_beat_spectrum(ref_feat, aligned_live_feat)        # Análisis de onsets con alineamiento DTW
-        onset_result = self.onset_analyzer.compare_onsets_detailed(
-            audio_ref, audio_live, sr, wp, self.config.hop_length
+        # Evaluación mejorada del DTW que incluye consistencia con onsets
+        dtw_analysis = self.dtw_aligner.evaluate_dtw_path_enhanced(wp, audio_ref, audio_live, sr)
+        dtw_regular = dtw_analysis['is_regular_combined']
+        
+        # Análisis de beat spectrum (CON alineamiento DTW)
+        beat_result = self.beat_spectrum_analyzer.analyze_beat_spectrum(ref_feat, aligned_live_feat_for_beat)
+        
+        # Análisis de onsets (SIN alineamiento DTW para preservar errores de timing reales)
+        onset_result = self.onset_analyzer.compare_onsets_without_alignment(
+            audio_ref, audio_live, sr, reference_tempo
         )
         rhythm_errors = self.onset_analyzer.detect_rhythm_pattern_errors(
             onset_result.onsets_ref, onset_result.onsets_live
         )
+          # Análisis de tempo usando método robusto si se proporciona tempo de referencia
+        if reference_tempo is not None:
+            tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(
+                audio_ref, audio_live, sr, reference_tempo
+            )
+        else:
+            # Usar análisis robusto estándar
+            tempo_result = self.tempo_analyzer.analyze_tempo_robust(audio_ref, audio_live, sr)
         
-        # Análisis de tempo
-        tempo_result = self.tempo_analyzer.analyze_tempo(audio_ref, audio_live, sr)
         segment_result = self.tempo_analyzer.validate_segments(audio_ref, audio_live, sr)
         
         # Generar visualizaciones
         if save_name:
             self.visualizer.plot_beat_spectrum_comparison(beat_result, sr, save_name)
             self.visualizer.plot_onset_errors_detailed(onset_result, save_name)
-        
-        # Imprimir resultados si es verbose
+          # Imprimir resultados si es verbose
         if verbose:
             self._print_analysis_results(beat_result, onset_result, tempo_result, 
-                                       segment_result, dtw_regular, rhythm_errors)
+                                       segment_result, dtw_analysis, rhythm_errors)
         
         return {
             'beat_spectrum': beat_result,
@@ -72,16 +95,15 @@ class MusicAnalyzer:
             'tempo': tempo_result,
             'segments': segment_result,
             'dtw_regular': dtw_regular,
-            'dtw_deviations': dtw_deviations,
+            'dtw_analysis': dtw_analysis,  # Análisis completo del DTW
             'rhythm_errors': rhythm_errors,
             'audio_ref': audio_ref,
             'audio_live': audio_live,
             'sample_rate': sr
         }
-    
     def _print_analysis_results(self, beat_result: BeatSpectrumResult, onset_result: OnsetAnalysisResult,
                                tempo_result: TempoAnalysisResult, segment_result: Dict,
-                               dtw_regular: bool, rhythm_errors: Tuple):
+                               dtw_analysis: Dict, rhythm_errors: Tuple):
         """Imprime resultados del análisis."""
         print("=" * 50)
         print("ANÁLISIS COMPLETO DE INTERPRETACIÓN MUSICAL")
@@ -117,20 +139,29 @@ class MusicAnalyzer:
         print(f"  📏 Compases en vivo: {segment_result['measures_live']}")
         status = "✅" if segment_result['overall_compatible'] else "⚠️"
         print(f"  {status} Estructura {'compatible' if segment_result['overall_compatible'] else 'incompatible'}")
-        
-        # DTW
-        status = "✅" if dtw_regular else "⚠️"
+          # DTW Análisis Mejorado
+        dtw_regular = dtw_analysis['is_regular_combined']
         print(f"\n🔄 ALINEAMIENTO DTW:")
-        print(f"  {status} Camino DTW {'regular' if dtw_regular else 'con desviaciones anómalas'}")
+        print(f"  📊 Evaluación tradicional: {'Regular' if dtw_analysis['is_regular_traditional'] else 'Irregular'}")
+        
+        if 'overall_assessment' in dtw_analysis:
+            print(f"  🎯 Consistencia DTW-Onsets: {dtw_analysis['overall_assessment']}")
+            print(f"  📈 Onsets bien alineados: {dtw_analysis['well_aligned_ratio']*100:.1f}%")
+            print(f"  ⏱️ Desplazamiento máximo: {dtw_analysis['max_displacement']*1000:.1f}ms")
+            
+        status = "✅" if dtw_regular else "⚠️"
+        print(f"  {status} Evaluación final: {'DTW y onsets consistentes' if dtw_regular else 'Inconsistencias detectadas'}")
         
         # Errores rítmicos
         repeats, gaps = rhythm_errors
         print(f"\n🎶 PATRONES RÍTMICOS:")
         print(f"  🔁 Repeticiones detectadas: {len(repeats)}")
-        print(f"  🕳️ Huecos grandes detectados: {len(gaps)}")
+        print(f"  🕳️ Huecos grandes detectados: {len(gaps)}")    
+        
+    
     def extract_analysis_for_csv(self, beat_result: BeatSpectrumResult, onset_result: OnsetAnalysisResult,
                                 tempo_result: TempoAnalysisResult, segment_result: Dict,
-                                dtw_regular: bool, rhythm_errors: Tuple, 
+                                dtw_data, rhythm_errors: Tuple, 
                                 mutation_category: str = "", mutation_name: str = "") -> Dict[str, Any]:
         """
         Extrae los resultados del análisis en formato para CSV.
@@ -140,16 +171,24 @@ class MusicAnalyzer:
             onset_result: Resultado del análisis de onsets
             tempo_result: Resultado del análisis de tempo
             segment_result: Resultado del análisis de segmentos
-            dtw_regular: Si el camino DTW es regular
+            dtw_data: Datos DTW (puede ser bool legacy o dict del análisis mejorado)
             rhythm_errors: Errores rítmicos detectados
             mutation_category: Categoría de la mutación
             mutation_name: Nombre de la mutación
-            
-        Returns:
+              Returns:
             Diccionario con los datos formateados para CSV (columnas de mutación primero)
         """
         stats = onset_result.stats
         repeats, gaps = rhythm_errors
+        
+        # Manejar dtw_data tanto en formato legacy (bool) como nuevo (dict)
+        if isinstance(dtw_data, dict):
+            dtw_regular = dtw_data.get('is_regular_combined', dtw_data.get('is_regular_traditional', False))
+            dtw_assessment = dtw_data.get('overall_assessment', 'Análisis DTW estándar')
+        else:
+            # Formato legacy: dtw_data es un booleano
+            dtw_regular = dtw_data
+            dtw_assessment = 'Camino DTW regular' if dtw_regular else 'Camino DTW con desviaciones anómalas'
         
         return {
             # Información de mutación (primeras columnas)
@@ -180,7 +219,7 @@ class MusicAnalyzer:
             'structure_compatible': 'Estructura compatible' if segment_result['overall_compatible'] else 'Estructura incompatible',
             
             # DTW
-            'dtw_regular': 'Camino DTW regular' if dtw_regular else 'Camino DTW con desviaciones anómalas',
+            'dtw_regular': dtw_assessment,
             
             # Patrones rítmicos
             'rhythm_repeats': len(repeats),
@@ -190,7 +229,8 @@ class MusicAnalyzer:
 
 # Función de conveniencia para análisis rápido
 def analyze_performance(reference_path: str, live_path: str, save_name: Optional[str] = None, 
-                       config: Optional[AudioAnalysisConfig] = None, verbose: bool = True) -> Dict[str, Any]:
+                       config: Optional[AudioAnalysisConfig] = None, verbose: bool = True,
+                       reference_tempo: Optional[float] = None) -> Dict[str, Any]:
     """
     Función de conveniencia para realizar un análisis completo de interpretación.
     
@@ -200,12 +240,15 @@ def analyze_performance(reference_path: str, live_path: str, save_name: Optional
         save_name: Nombre base para guardar gráficos (opcional)
         config: Configuración de análisis (opcional)
         verbose: Si mostrar resultados por pantalla (opcional)
+        reference_tempo: Tempo conocido del MIDI original (opcional, para análisis más robusto)
     
     Returns:
         Diccionario con todos los resultados del análisis
     """
+    if config is None:
+        config = AudioAnalysisConfig()
     analyzer = MusicAnalyzer(config)
-    return analyzer.comprehensive_analysis(reference_path, live_path, save_name, verbose)
+    return analyzer.comprehensive_analysis(reference_path, live_path, save_name, verbose, reference_tempo)
 
 
 # Función compatible con el script original
@@ -238,18 +281,20 @@ def show_beat_spectrum(reference_path: str, live_path: str,
         print(f"✅ Onsets emparejados: {len(matched)}")
         print(f"❌ Notas faltantes (en vivo): {len(unmatched_ref)}")
         print(f"❌ Notas extras (en vivo): {len(unmatched_live)}")
-        
-        # Tempo
-        tempo_result = analyzer.tempo_analyzer.analyze_tempo(audio_ref, audio_live, sr)
+          # Tempo usando análisis robusto
+        tempo_result = analyzer.tempo_analyzer.analyze_tempo_robust(audio_ref, audio_live, sr)
         print(f"🎼 Tempo referencia: {tempo_result.tempo_ref:.2f} BPM")
         print(f"🎼 Tempo en vivo: {tempo_result.tempo_live:.2f} BPM")
         status = "✅ Tempo similar." if tempo_result.is_similar else "⚠️ Diferencia significativa de tempo."
         print(status)
-        
-        # DTW
-        _, dtw_regular = analyzer.dtw_aligner.evaluate_dtw_path(wp)
+          # DTW con análisis mejorado
+        dtw_analysis = analyzer.dtw_aligner.evaluate_dtw_path_enhanced(wp, audio_ref, audio_live, sr)
+        dtw_regular = dtw_analysis['is_regular_combined']
         status = "✅ Camino DTW razonablemente regular." if dtw_regular else "⚠️ Camino DTW con desviaciones anómalas."
         print(status)
+        
+        if 'overall_assessment' in dtw_analysis:
+            print(f"📊 {dtw_analysis['overall_assessment']}")
         
         # Segmentos
         segment_result = analyzer.tempo_analyzer.validate_segments(audio_ref, audio_live, sr)
