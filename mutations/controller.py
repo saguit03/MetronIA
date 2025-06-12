@@ -75,7 +75,7 @@ def note_played_too_soon_mutation_controller(excerpt, tempo=120):
     
 # note_played_too_late. Played AFTER it should
 def note_played_too_late_mutation(excerpt, tempo=120):
-    return time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'], early_probability=0.3, seed=SEED)
+    return time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'], early_probability=0.3)
 
 # note_held_too_long. A note is played longer than expected
 def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"], max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):

@@ -76,7 +76,7 @@ class TempoAnalyzer:
         
         try:
             # Método 2: tempo estimation con aggregate function
-            tempo_agg = librosa.beat.tempo(y=audio, sr=sr, aggregate=np.median)[0]
+            tempo_agg = librosa.feature.rhythm.tempo(y=audio, sr=sr, aggregate=np.median)[0]
             tempos.append(float(tempo_agg))
         except:
             pass
