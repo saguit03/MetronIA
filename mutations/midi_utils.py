@@ -7,6 +7,7 @@ import scipy.io.wavfile as wavfile
 import numpy as np
 from mdtk.utils import synthesize_from_note_df
 from mutations.config import MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
+from mutations.results import MutationResult
 
 def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
@@ -157,3 +158,112 @@ def save_excerpt_complete(excerpt, save_name, soundfont_path=None, sample_rate=1
     midi_path = save_excerpt_in_midi(excerpt, save_name, tempo)
     
     return audio_path, midi_path
+
+def save_mutation_complete(mutation_result: MutationResult, save_name, base_tempo=120, soundfont_path=None, sample_rate=16000):
+    """
+    Guarda una mutación completa como archivo de audio (WAV) y MIDI con el tempo correcto.
+    
+    Parameters
+    ----------
+    mutation_result : MutationResult
+        Resultado de la mutación aplicada
+    save_name : str
+        Nombre base del archivo (sin extensión)
+    base_tempo : int
+        Tempo base del MIDI original en BPM (default: 120)
+    soundfont_path : str, optional
+        Ruta al soundfont para síntesis de audio
+    sample_rate : int
+        Sample rate para el archivo de audio (default: 16000)
+    
+    Returns
+    -------
+    tuple
+        Tupla con (ruta_audio, ruta_midi, tempo_calculado)
+    """
+    if not mutation_result.success or mutation_result.excerpt is None:
+        raise ValueError("La mutación no fue exitosa o no tiene excerpt válido")
+    
+    # Calcular el tempo apropiado para la mutación
+    calculated_tempo = mutation_result.get_mutation_tempo(base_tempo)
+    
+    # Guardar archivos con el tempo calculado
+    audio_path = save_excerpt_in_audio(mutation_result.excerpt, save_name, soundfont_path, sample_rate)
+    midi_path = save_excerpt_in_midi(mutation_result.excerpt, save_name, calculated_tempo)
+    
+    return audio_path, midi_path, calculated_tempo
+
+def extract_tempo_from_midi(midi_file_path: str) -> int:
+    """
+    Extrae el tempo del archivo MIDI.
+    
+    Parameters
+    ----------
+    midi_file_path : str
+        Ruta al archivo MIDI
+        
+    Returns
+    -------
+    int
+        Tempo en BPM, 120 por defecto si no se puede extraer
+    """
+    try:
+        # Intentar con pretty_midi primero
+        midi_data = pretty_midi.PrettyMIDI(midi_file_path)
+        
+        # Obtener cambios de tempo
+        tempo_changes = midi_data.get_tempo_changes()
+        if len(tempo_changes) > 1 and len(tempo_changes[1]) > 0:
+            # Usar el primer tempo encontrado
+            initial_tempo = tempo_changes[1][0]  # tempo_changes[1] contiene los valores de tempo
+            return int(initial_tempo)
+        
+        # Si no hay cambios de tempo explícitos, intentar calcular desde el BPM estimado
+        if hasattr(midi_data, 'estimate_tempo'):
+            estimated_tempo = midi_data.estimate_tempo()
+            return int(estimated_tempo)
+            
+    except Exception:
+        pass
+    
+    try:
+        # Fallback con mido
+        mid = mido.MidiFile(midi_file_path)
+        
+        # Buscar eventos de tempo en todas las pistas
+        for track in mid.tracks:
+            for msg in track:
+                if msg.type == 'set_tempo':
+                    # Convertir de microsegundos por beat a BPM
+                    bpm = 60000000 / msg.tempo
+                    return int(bpm)
+        
+        # Si no se encuentra tempo explícito, usar ticks_per_beat para estimación
+        if mid.ticks_per_beat:
+            # Estimar basándose en la densidad de notas (heurística simple)
+            total_notes = 0
+            total_time_ticks = 0
+            
+            for track in mid.tracks:
+                track_time = 0
+                for msg in track:
+                    track_time += msg.time
+                    if msg.type == 'note_on' and msg.velocity > 0:
+                        total_notes += 1
+                        
+                total_time_ticks = max(total_time_ticks, track_time)
+            
+            if total_notes > 0 and total_time_ticks > 0:
+                # Heurística simple: estimar BPM basado en densidad de notas
+                beats_estimated = total_time_ticks / mid.ticks_per_beat
+                if beats_estimated > 0:
+                    # Asumir duración razonable y calcular BPM
+                    estimated_duration_seconds = beats_estimated * 0.5  # Asumir ~120 BPM como base
+                    estimated_bpm = (beats_estimated * 60) / estimated_duration_seconds
+                    return max(60, min(200, int(estimated_bpm)))
+                    
+    except Exception:
+        pass
+    
+    # Fallback: tempo estándar
+    return 120

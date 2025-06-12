@@ -3,7 +3,6 @@ import numpy as np
 from mdtk.degradations import (
     pitch_shift,
     offset_shift,
-    onset_shift,
     add_note,
     join_notes,
     MAX_PITCH_DEFAULT,
@@ -18,7 +17,8 @@ from mdtk.mutations import (
     time_shift_mutation,
     tempo_fluctuation,
     offset_cut,
-    remove_intermediate_note
+    remove_intermediate_note,
+    note_played_too_soon_mutation
 )
 
 from mutations.config import (
@@ -28,8 +28,6 @@ from mutations.config import (
     A_LOT_SLOWER,
     ACCELERANDO,
     RITARDANDO,
-    NOTE_PLAYED_TOO_SOON,
-    NOTE_PLAYED_TOO_LATE,
     MIN_DUR,
     MAX_DUR,
     MIN_VELOCITY,
@@ -72,21 +70,13 @@ def ritardando_tempo_mutation(excerpt, factor=RITARDANDO):
     return accelerando_tempo(excerpt, end_factor=factor) 
     
 # note_played_too_soon. Played BEFORE it should
-def note_played_too_soon_time_mutation(excerpt, min_shift=NOTE_PLAYED_TOO_SOON["min_shift"], max_shift=NOTE_PLAYED_TOO_SOON["max_shift"], align_onset=False):
-    return time_shift_mutation(excerpt, min_shift=min_shift, max_shift=max_shift, align_onset=align_onset, seed=SEED)
+def note_played_too_soon_mutation_controller(excerpt, tempo=120):
+    return note_played_too_soon_mutation(excerpt, tempo=tempo, note_types=['sixteenth', 'eighth'])
     
 # note_played_too_late. Played AFTER it should
-def note_played_too_late_time_mutation(excerpt, min_shift=NOTE_PLAYED_TOO_LATE["min_shift"], max_shift=NOTE_PLAYED_TOO_LATE["max_shift"], align_onset=False):
-    return time_shift_mutation(excerpt, min_shift=min_shift, max_shift=max_shift, align_onset=align_onset, seed=SEED)
+def note_played_too_late_mutation(excerpt, tempo=120):
+    return time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'], early_probability=0.3, seed=SEED)
 
-# note_played_too_soon. Played BEFORE it should
-def note_played_too_soon_onset_mutation(excerpt, min_shift=NOTE_PLAYED_TOO_SOON["min_shift"], max_shift=NOTE_PLAYED_TOO_SOON["max_shift"], align_onset=False):
-    return onset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, align_onset=align_onset, seed=SEED)
-    
-# note_played_too_late. Played AFTER it should
-def note_played_too_late_onset_mutation(excerpt, min_shift=NOTE_PLAYED_TOO_LATE["min_shift"], max_shift=NOTE_PLAYED_TOO_LATE["max_shift"], align_onset=False):
-    return onset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, align_onset=align_onset, seed=SEED)
-    
 # note_held_too_long. A note is played longer than expected
 def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"], max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):
     return offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, align_dur=align_dur, seed=SEED)

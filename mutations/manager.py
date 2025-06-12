@@ -16,10 +16,8 @@ from mutations.controller import (
     a_lot_slower_tempo_mutation,
     accelerando_tempo_mutation,
     ritardando_tempo_mutation,
-    note_played_too_soon_time_mutation,
-    note_played_too_late_time_mutation,
-    note_played_too_soon_onset_mutation,
-    note_played_too_late_onset_mutation,
+    note_played_too_soon_mutation_controller,
+    note_played_too_late_mutation,
     note_held_too_long_mutation,
     note_cut_too_soon_mutation,
     note_missing_mutation,
@@ -75,12 +73,10 @@ class MutationManager:
         timing_category = MutationCategory(
             name="timing_errors",
             description="Errores de timing de las notas"
-        )
+        )        
         timing_mutations = [
-            ("note_too_soon_time", "Nota tocada demasiado pronto (tiempo)", note_played_too_soon_time_mutation),
-            ("note_too_late_time", "Nota tocada demasiado tarde (tiempo)", note_played_too_late_time_mutation),
-            ("note_too_soon_onset", "Nota tocada demasiado pronto (onset)", note_played_too_soon_onset_mutation),
-            ("note_too_late_onset", "Nota tocada demasiado tarde (onset)", note_played_too_late_onset_mutation),
+            ("note_too_soon", "Nota tocada demasiado pronto", note_played_too_soon_mutation_controller),
+            ("note_too_late", "Nota tocada demasiado tarde", note_played_too_late_mutation),
         ]
         for name, desc, func in timing_mutations:
             timing_category.add_mutation(MutationResult(name=name, description=desc, function=func))
@@ -125,17 +121,20 @@ class MutationManager:
         for name, desc, func in articulation_mutations:
             articulation_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["articulation_errors"] = articulation_category
-    
-    def apply_all_mutations(self, original_excerpt: pd.DataFrame) -> Dict[str, Dict[str, bool]]:
+    def apply_all_mutations(self, original_excerpt: pd.DataFrame, tempo: int = 120) -> Dict[str, Dict[str, bool]]:
         """
         Aplica todas las mutaciones a un excerpt original.
+        
+        Args:
+            original_excerpt: DataFrame con el excerpt musical original
+            tempo: Tempo en BPM del MIDI original
         
         Returns:
             Dict con los resultados organizados por categoría.
         """
         results = {}
         for category_name, category in self.categories.items():
-            results[category_name] = category.apply_all(original_excerpt)
+            results[category_name] = category.apply_all(original_excerpt, tempo=tempo)
         return results
     
     def get_mutation(self, category_name: str, mutation_name: str) -> Optional[MutationResult]:

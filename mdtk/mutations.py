@@ -33,132 +33,129 @@ TRIES_WARN_MSG = (
 
 from mdtk.degradations import *
 
+def calculate_musical_duration(tempo, note_type='eighth'):
+    """
+    Calcula la duración de una nota musical en milisegundos basándose en el tempo.
+    
+    Parameters
+    ----------
+    tempo : int
+        Tempo en BPM (beats per minute)
+    note_type : str
+        Tipo de nota: 'whole', 'half', 'quarter', 'eighth', 'sixteenth'
+        
+    Returns
+    -------
+    int
+        Duración en milisegundos
+    """
+    # Duración de una negra en milisegundos
+    quarter_note_duration = (60.0 / tempo) * 1000
+    
+    note_values = {
+        'whole': 4.0,      # redonda
+        'half': 2.0,       # blanca
+        'quarter': 1.0,    # negra
+        'eighth': 0.5,     # corchea
+        'sixteenth': 0.25  # semicorchea
+    }
+    
+    if note_type not in note_values:
+        note_type = 'eighth'  # default
+        
+    duration = quarter_note_duration * note_values[note_type]
+    return int(duration)
+
 @set_random_seed
 def time_shift_mutation(
     excerpt,
-    min_shift=MIN_SHIFT_DEFAULT,
-    max_shift=MAX_SHIFT_DEFAULT,
-    align_onset=False,
+    tempo=120,
+    note_types=['eighth', 'sixteenth'],
+    early_probability=0.3,
     tries=TRIES_DEFAULT,
 ):
     """
-    Shift the onset and offset times of one note and the following ones from the given excerpt,
-    leaving its duration unchanged.
+    Inserta silencios musicales (corcheas o semicorcheas) basados en el tempo para simular
+    retrasos de tiempo realistas en la interpretación musical.
 
     Parameters
     ----------
     excerpt : pd.DataFrame
         An excerpt from a piece of music.
 
-    min_shift : int
-        The minimum amount by which the note will be shifted.
+    tempo : int
+        Tempo en BPM para calcular duraciones musicales apropiadas.
 
-    max_shift : int
-        The maximum amount by which the note will be shifted.
+    note_types : list
+        Lista de tipos de notas musicales para usar como silencios 
+        ('eighth', 'sixteenth', 'quarter', etc.).
 
-    align_onset : boolean
-        Align the shifted note to the onset time of an existing note
-        (within the given shift range).
-
-    seed : int
-        A seed to be supplied to np.random.seed(). None leaves numpy's
-        random state unchanged.
+    early_probability : float
+        Probabilidad de que el silencio se inserte antes de la nota 
+        (vs después), simulando anticipación vs retraso.
 
     tries : int
         The number of times to try the degradation before giving up, in the case
         that the degraded excerpt overlaps.
 
-
     Returns
     -------
     degraded : pd.DataFrame
-        A degradation of the excerpt, with the timing of one note and the ones after it changed,
+        A degradation of the excerpt, with musical silences inserted,
         or None if there are no notes that can be changed.
     """
     excerpt = pre_process(excerpt)
 
-    min_shift = max(min_shift, 1)
+    if len(excerpt) == 0:
+        logging.warning("Empty excerpt. Returning None.")
+        return None
 
-    onset = excerpt["onset"]
-    offset = onset + excerpt["dur"]
-    end_time = offset.max()
-
-    # Shift earlier
-    earliest_earlier_onset = (onset - (max_shift - 1)).clip(lower=0)
-    latest_earlier_onset = onset - (min_shift - 1)
-
-    # Shift later
-    latest_later_onset = onset + (((end_time + 1) - offset).clip(upper=max_shift + 1))
-    earliest_later_onset = onset + min_shift
-
-    if align_onset:
-        onset = pd.Series(onset.unique())
-        for i, (eeo, leo, elo, llo) in enumerate(
-            zip(
-                earliest_earlier_onset,
-                latest_earlier_onset,
-                earliest_later_onset,
-                latest_later_onset,
-            )
-        ):
-            # Go through each range to check there is a valid onset
-            earlier_valid = onset.between(eeo, leo - 1).any()
-            later_valid = onset.between(elo, llo - 1).any()
-
-            # Close invalid ranges
-            if not earlier_valid:
-                earliest_earlier_onset.iloc[i] = leo
-            if not later_valid:
-                earliest_later_onset.iloc[i] = llo
-
-    # Find valid notes
-    valid = (earliest_earlier_onset < latest_earlier_onset) | (
-        earliest_later_onset < latest_later_onset
-    )
-    valid_notes = list(valid.index[valid])
-
+    # Seleccionar una nota aleatoria para aplicar el silencio musical
+    valid_notes = list(excerpt.index)
     if not valid_notes:
         logging.warning("No valid notes to time shift. Returning None.")
         return None
 
-    # Sample a random note
+    # Seleccionar nota aleatoria
     index = choice(valid_notes)
-
-    eeo = earliest_earlier_onset[index]
-    leo = max(latest_earlier_onset[index], eeo)
-    elo = earliest_later_onset[index]
-    llo = max(latest_later_onset[index], elo)
-
-    if align_onset:
-        valid_onsets = onset.between(eeo, leo - 1) | onset.between(elo, llo - 1)
-        valid_onsets = list(onset[valid_onsets])
-        onset = choice(valid_onsets)
-    else:
-        onset = split_range_sample([(eeo, leo), (elo, llo)])
-
+    
+    # Seleccionar tipo de nota musical aleatoriamente
+    note_type = choice(note_types)
+    
+    # Calcular duración del silencio musical
+    silence_duration = calculate_musical_duration(tempo, note_type)
+    
+    # Decidir si insertar el silencio antes (early) o después (late) de la nota
+    insert_early = np.random.random() < early_probability
+    
     degraded = excerpt.copy()
-
     old_onset = excerpt.loc[index, "onset"]
-    delta_time = onset - old_onset
+    
+    if insert_early:
+        # Insertar silencio antes: mover la nota seleccionada y todas las posteriores hacia adelante
+        new_onset = old_onset + silence_duration
+        degraded.loc[index, "onset"] = new_onset
+        
+        # Mover todas las notas posteriores
+        mask_later_notes = degraded.index != index
+        mask_later_notes &= degraded["onset"] >= old_onset
+        degraded.loc[mask_later_notes, "onset"] += silence_duration
+        
+    else:
+        # Insertar silencio después: mover solo las notas posteriores a la seleccionada
+        mask_later_notes = degraded["onset"] > old_onset
+        degraded.loc[mask_later_notes, "onset"] += silence_duration
 
-    # Aplica el desplazamiento a la nota elegida
-    degraded.loc[index, "onset"] = onset
-
-    # Aplica el mismo desplazamiento a las notas posteriores
-    mask_later_notes = degraded.index != index
-    mask_later_notes &= degraded["onset"] > old_onset
-    degraded.loc[mask_later_notes, "onset"] += delta_time
-
-    # Chequeo de solapamientos
-    if overlaps(degraded, index):
+    # Verificar solapamientos
+    if any(overlaps(degraded, idx) for idx in degraded.index):
         if tries == 1:
             logging.warning(TRIES_WARN_MSG)
             return None
-        return time_shift(
+        return time_shift_mutation(
             excerpt,
-            min_shift=min_shift,
-            max_shift=max_shift,
-            align_onset=align_onset,
+            tempo=tempo,
+            note_types=note_types,
+            early_probability=early_probability,
             tries=tries - 1,
         )
 
@@ -438,4 +435,108 @@ def remove_intermediate_note(excerpt, tries=TRIES_DEFAULT):
 
     # No need to check for overlap
     degraded = post_process(degraded, sort=False)
+    return degraded
+
+@set_random_seed
+def note_played_too_soon_mutation(
+    excerpt,
+    tempo=120,
+    note_types=['eighth', 'sixteenth'],
+    tries=TRIES_DEFAULT,
+):
+    """
+    Simula una nota tocada demasiado pronto acortando su duración y adelantando 
+    todas las notas siguientes según el valor acortado.
+    
+    Por ejemplo: Si una negra se acorta a corchea, todas las notas siguientes 
+    se adelantan una corchea (el valor acortado).
+
+    Parameters
+    ----------
+    excerpt : pd.DataFrame
+        An excerpt from a piece of music.
+
+    tempo : int
+        Tempo en BPM para calcular duraciones musicales apropiadas.
+
+    note_types : list
+        Lista de tipos de notas musicales para usar como duración objetivo
+        ('eighth', 'sixteenth', 'quarter', etc.).
+
+    tries : int
+        The number of times to try the degradation before giving up, in the case
+        that the degraded excerpt overlaps.
+
+    Returns
+    -------
+    degraded : pd.DataFrame
+        A degradation of the excerpt, with one note shortened and subsequent notes advanced,
+        or None if there are no notes that can be changed.
+    """
+    excerpt = pre_process(excerpt)
+
+    if len(excerpt) == 0:
+        logging.warning("Empty excerpt. Returning None.")
+        return None
+
+    # Seleccionar notas válidas (excluyendo la última nota para que haya notas posteriores)
+    valid_notes = list(excerpt.index[:-1]) if len(excerpt) > 1 else []
+    if not valid_notes:
+        logging.warning("No valid notes to shorten (need at least 2 notes). Returning None.")
+        return None
+
+    # Seleccionar nota aleatoria para acortar
+    index = choice(valid_notes)
+    
+    # Seleccionar tipo de nota musical para la nueva duración
+    target_note_type = choice(note_types)
+    
+    # Calcular nueva duración musical más corta
+    new_duration = calculate_musical_duration(tempo, target_note_type)
+    
+    degraded = excerpt.copy()
+    original_duration = degraded.loc[index, "dur"]
+    
+    # Verificar que la nueva duración es efectivamente más corta
+    if new_duration >= original_duration:
+        # Si la nueva duración no es más corta, usar la mitad de la duración original
+        new_duration = max(MIN_DURATION_DEFAULT, original_duration // 2)
+    
+    # Calcular cuánto se acortó la nota
+    duration_reduction = original_duration - new_duration
+    
+    # Acortar la nota seleccionada
+    degraded.loc[index, "dur"] = new_duration
+    
+    # Adelantar todas las notas posteriores según el valor acortado
+    current_onset = degraded.loc[index, "onset"]
+    mask_later_notes = degraded["onset"] > current_onset
+    degraded.loc[mask_later_notes, "onset"] -= duration_reduction
+
+    # Verificar que no haya onsets negativos
+    if (degraded["onset"] < 0).any():
+        logging.warning("Generated negative onsets. Trying again.")
+        if tries == 1:
+            logging.warning(TRIES_WARN_MSG)
+            return None
+        return note_played_too_soon_mutation(
+            excerpt,
+            tempo=tempo,
+            note_types=note_types,
+            tries=tries - 1,
+        )
+
+    # Verificar solapamientos
+    if any(overlaps(degraded, idx) for idx in degraded.index):
+        if tries == 1:
+            logging.warning(TRIES_WARN_MSG)
+            return None
+        return note_played_too_soon_mutation(
+            excerpt,
+            tempo=tempo,
+            note_types=note_types,
+            tries=tries - 1,
+        )
+
+    degraded = post_process(degraded)
     return degraded

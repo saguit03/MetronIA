@@ -1,3 +1,7 @@
+analysis_plots/
+mutts_audios/
+old/
+references/
 *.DS_Store
 .vscode
 .idea
