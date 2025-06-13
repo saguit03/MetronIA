@@ -20,8 +20,7 @@ from tqdm import tqdm
 from mutations.manager import MutationManager
 from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, save_mutation_complete, extract_tempo_from_midi
 from analyzers import analyze_performance
-from analyzers import MusicAnalyzer
-
+from analyzers import MusicAnalyzer, ResultVisualizer
 
 def save_analysis_results_to_csv(analysis_data: List[Dict[str, Any]], output_file: str):
     """
@@ -163,39 +162,71 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
         print(f"\n⚠️ Mutaciones fallidas:")
         for category, name, error in failed_mutations:
             print(f"  - {category}.{name}: {error}")
-    
-    # 5. ANÁLISIS DE CADA MUTACIÓN VS ORIGINAL
+      # 5. ANÁLISIS DE CADA MUTACIÓN VS ORIGINAL
     print(f"\n🔬 Analizando mutaciones contra el original...")
     
     csv_data = []
     
+    # Crear analizador y visualizador una sola vez
+    analyzer = MusicAnalyzer()
+    result_visualizer = ResultVisualizer(output_dir=results_dir / "mutations")
+    
     for category_name, mutation_name, mutation, audio_path in tqdm(successful_mutations, 
                                                                    desc="Analizando mutaciones"):
-        try:            # Realizar análisis completo (sin verbose para evitar spam)
-            analysis_result = analyze_performance(
+        try:
+            analysis_result = analyzer.comprehensive_analysis(
                 reference_path=reference_audio_path,
                 live_path=audio_path,
                 save_name=f"{midi_name}_{mutation_name}",
-                config=None,  # Usar configuración por defecto
-                verbose=False,  # No mostrar resultados por pantalla
                 reference_tempo=base_tempo  # Pasar el tempo extraído del MIDI
-            )            # Extraer datos para CSV con información de mutación
-            analyzer = MusicAnalyzer()
-            csv_row = analyzer.extract_analysis_for_csv(
-                beat_result=analysis_result['beat_spectrum'],
-                onset_result=analysis_result['onsets'],
-                tempo_result=analysis_result['tempo'],
-                segment_result=analysis_result['segments'],
-                dtw_data=analysis_result.get('dtw_analysis', analysis_result['dtw_regular']),  # Usar el nuevo formato o fallback
-                rhythm_errors=analysis_result['rhythm_errors'],
-                mutation_category=category_name,
-                mutation_name=mutation_name
             )
             
-            csv_data.append(csv_row)
-            
+            # Obtener datos para CSV usando el método directo de OnsetDTWAnalysisResult
+            dtw_onset_result = analysis_result.get('dtw_onsets')
+            if dtw_onset_result:
+                csv_row = dtw_onset_result.get_csv_data(category_name, mutation_name)
+                
+                # Agregar datos adicionales del análisis completo
+                csv_row.update({
+                    'beat_spectrum_similar': 'Similar' if analysis_result['beat_spectrum'].is_similar else 'Diferencias significativas',
+                    'beat_spectrum_max_difference': f"{analysis_result['beat_spectrum'].max_difference:.3f}",
+                    'tempo_reference_bpm': f"{analysis_result['tempo'].tempo_ref:.2f}",
+                    'tempo_live_bpm': f"{analysis_result['tempo'].tempo_live:.2f}",
+                    'tempo_difference_bpm': f"{analysis_result['tempo'].difference:.2f}",
+                    'tempo_similar': 'Tempo similar' if analysis_result['tempo'].is_similar else 'Diferencia significativa de tempo',
+                    'structure_measures_ref': analysis_result['segments'].get('measures_ref', 0),
+                    'structure_measures_live': analysis_result['segments'].get('measures_live', 0),
+                    'structure_compatible': 'Estructura compatible' if analysis_result['segments'].get('overall_compatible', False) else 'Estructura incompatible',
+                    'dtw_regular': analysis_result.get('dtw_analysis', {}).get('overall_assessment', 'N/A'),
+                    'audio_file_path': str(audio_path),
+                    'reference_audio_path': str(reference_audio_path)
+                })
+                
+                csv_data.append(csv_row)
+                
+                # Generar visualizaciones detalladas para algunas mutaciones importantes
+                # (para evitar generar demasiados archivos, solo para las primeras de cada categoría)
+                if len([row for row in csv_data if row['mutation_category'] == category_name]) <= 2:
+                    try:
+                        result_visualizer.plot_onset_errors_detailed(
+                            dtw_onset_result=dtw_onset_result,
+                            save_name=f"{midi_name}_{category_name}_{mutation_name}",
+                            show_plot=False
+                        )
+                    except Exception as viz_error:
+                        print(f"⚠️ Error generando visualización para {mutation_name}: {viz_error}")
+            else:
+                print(f"⚠️ No se obtuvieron resultados DTW para {category_name}.{mutation_name}")
+                
         except Exception as e:
             print(f"❌ Error analizando {category_name}.{mutation_name}: {e}")
+            # Agregar una fila con datos mínimos para no perder la información
+            csv_data.append({
+                'mutation_category': category_name,
+                'mutation_name': mutation_name,                'error': str(e),
+                'audio_file_path': str(audio_path),
+                'reference_audio_path': str(reference_audio_path)
+            })
     
     print(f"\n📈 Análisis completado: {len(csv_data)} mutaciones analizadas")
     
@@ -204,12 +235,60 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
         csv_file = results_dir / f"analysis_results_{midi_name}.csv"
         save_analysis_results_to_csv(csv_data, csv_file)
         
-        # Estadísticas finales
-        print(f"\n🎉 PIPELINE COMPLETADO EXITOSAMENTE")
-        print(f"📊 Archivos generados:")
-        print(f"  - Audio de referencia: {reference_audio_path}")
-        print(f"  - Mutaciones exitosas: {len(successful_mutations)} archivos WAV")
-        print(f"  - Resultados CSV: {csv_file}")
+        # Generar un reporte resumen usando ResultVisualizer
+        try:
+            # Crear un análisis sintético para el reporte general
+            successful_analyses = [row for row in csv_data if 'error' not in row]
+            if successful_analyses:
+                print(f"\n📊 Generando reporte de resumen...")
+                
+                # Calcular estadísticas generales
+                summary_stats = {
+                    'total_mutations': len(csv_data),
+                    'successful_analyses': len(successful_analyses),
+                    'failed_analyses': len(csv_data) - len(successful_analyses),
+                    'categories_analyzed': len(set(row.get('mutation_category', 'unknown') for row in csv_data)),
+                    'avg_consistency_rate': sum(float(row.get('dtw_onsets_consistency_rate', '0%').replace('%', '')) 
+                                              for row in successful_analyses) / len(successful_analyses) if successful_analyses else 0
+                }
+                
+                summary_report_path = results_dir / f"summary_report_{midi_name}.txt"
+                with open(summary_report_path, 'w', encoding='utf-8') as f:
+                    f.write(f"""
+REPORTE RESUMEN DEL PIPELINE METRONIA
+{'='*50}
+Archivo MIDI analizado: {midi_file_path}
+Fecha: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+ESTADÍSTICAS GENERALES:
+- Total mutaciones procesadas: {summary_stats['total_mutations']}
+- Análisis exitosos: {summary_stats['successful_analyses']}
+- Análisis fallidos: {summary_stats['failed_analyses']}
+- Categorías analizadas: {summary_stats['categories_analyzed']}
+- Tasa de consistencia promedio: {summary_stats['avg_consistency_rate']:.1f}%
+
+ARCHIVOS GENERADOS:
+- Audio de referencia: {reference_audio_path}
+- Archivos de mutaciones: {len(successful_mutations)} archivos WAV
+- Resultados CSV: {csv_file}
+- Visualizaciones: {results_dir / 'visualizations'}
+- Este reporte: {summary_report_path}
+
+ANÁLISIS POR CATEGORÍA:
+""")
+                    
+                    # Estadísticas por categoría
+                    for category in set(row.get('mutation_category', 'unknown') for row in successful_analyses):
+                        category_data = [row for row in successful_analyses if row.get('mutation_category') == category]
+                        if category_data:
+                            avg_consistency = sum(float(row.get('dtw_onsets_consistency_rate', '0%').replace('%', '')) 
+                                                for row in category_data) / len(category_data)
+                            f.write(f"- {category}: {len(category_data)} mutaciones, consistencia promedio: {avg_consistency:.1f}%\n")
+                
+                print(f"  📋 Reporte de resumen guardado en: {summary_report_path}")
+        
+        except Exception as e:
+            print(f"⚠️ Error generando reporte de resumen: {e}")
         
         return csv_file
     else:

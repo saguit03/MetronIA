@@ -77,9 +77,8 @@ El sistema ya exporta automáticamente los onsets a CSV con información de desp
 ### **Columnas del CSV:**
 - `reference_timestamp`: Tiempo del onset en referencia
 - `live_timestamp`: Tiempo del onset en vivo  
-- `category`: Tipo de onset (correcto, temprano, tarde, faltante, extra)
+- `category`: Tipo de onset (correcto, adelantado, tarde, faltante, extra)
 - `time_difference`: Diferencia temporal (live - reference)
-- `abs_time_difference`: Diferencia absoluta
 - `onset_index`: Índice secuencial
 - `analysis_name`: Nombre del análisis
 
