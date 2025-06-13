@@ -2,6 +2,10 @@ analysis_plots/
 mutts_audios/
 old/
 references/
+results/
+mutts_midis/
+demo_*.py
+
 *.DS_Store
 .vscode
 .idea

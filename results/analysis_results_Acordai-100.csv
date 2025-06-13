@@ -1,3 +1,0 @@
-mutation_category,mutation_name,beat_spectrum_similar,beat_spectrum_max_difference,onsets_correct,onsets_early,onsets_late,onsets_missing,onsets_extra,onsets_precision,tempo_reference_bpm,tempo_live_bpm,tempo_difference_bpm,tempo_similar,structure_measures_ref,structure_measures_live,structure_compatible,dtw_regular,rhythm_repeats,rhythm_large_gaps
-timing_errors,note_too_soon,Similar,0.003,19,0,0,7,7,73.1%,109.00,107.65,1.35,Tempo similar,5,5,Estructura compatible,Excelente: DTW y onsets completamente consistentes,0,3
-timing_errors,note_too_late,Similar,0.013,21,0,0,5,5,80.8%,109.00,107.65,1.35,Tempo similar,5,5,Estructura compatible,Bueno: DTW y onsets mayormente consistentes,0,4
