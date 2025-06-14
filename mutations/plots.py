@@ -25,8 +25,7 @@ def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
     nr_diffs = len(list_of_diff_excerpts)
     fig, ax = plt.subplots(
         1, nr_diffs + 1, figsize=(6 * (nr_diffs + 1), 4), sharex=True, sharey=True
-    )
-
+    )    
     plt.sca(ax[0])
     plot_from_df(orig_excerpt, alpha=0.3)
     plt.title("original")
@@ -38,7 +37,7 @@ def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
         plt.title(f"deg {ii + 1}")
 
     if save_name is not None:
-        Path(MUTATIONS_PLOTS_PATH).mkdir(exist_ok=True)
+        Path(MUTATIONS_PLOTS_PATH).mkdir(parents=True, exist_ok=True)
         fig_path = Path(MUTATIONS_PLOTS_PATH) / f"{save_name}.png"
         plt.savefig(fig_path, bbox_inches="tight")
 

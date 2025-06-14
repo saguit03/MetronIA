@@ -12,7 +12,7 @@ from mutations.results import MutationResult
 def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-    Path(MUTATIONS_AUDIO_PATH).mkdir(exist_ok=True)
+    Path(MUTATIONS_AUDIO_PATH).mkdir(parents=True, exist_ok=True)
     output_filename = Path(MUTATIONS_AUDIO_PATH) / f"{save_name}.wav"
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
@@ -93,9 +93,8 @@ def save_excerpt_in_midi(excerpt, save_name, tempo=120):
     -------
     Path
         Ruta del archivo MIDI guardado
-    """
-    # Crear directorio si no existe
-    Path(MUTATIONS_MIDI_PATH).mkdir(exist_ok=True)
+    """    # Crear directorio si no existe
+    Path(MUTATIONS_MIDI_PATH).mkdir(parents=True, exist_ok=True)
     output_filename = Path(MUTATIONS_MIDI_PATH) / f"{save_name}.mid"
     
     # Crear objeto PrettyMIDI

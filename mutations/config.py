@@ -1,3 +1,5 @@
+from pathlib import Path
+
 FASTER = 1.2
 A_LOT_FASTER = 1.5
 SLOWER = 0.8
@@ -34,8 +36,10 @@ NOTE_CUT_TOO_SOON = {
 }
 SEED = None
 
-MUTATIONS_AUDIO_PATH = "mutts_audios"
-MUTATIONS_MIDI_PATH = "mutts_midis"
-MUTATIONS_PLOTS_PATH = "mutts_plots"
+# Configuración de rutas usando pathlib.Path
+MUTATIONS_PATH = Path("mutts")
+MUTATIONS_AUDIO_PATH = MUTATIONS_PATH / "audios"
+MUTATIONS_MIDI_PATH = MUTATIONS_PATH / "midis"
+MUTATIONS_PLOTS_PATH = MUTATIONS_PATH / "plots"
 
 

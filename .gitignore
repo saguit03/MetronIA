@@ -1,9 +1,7 @@
-analysis_plots/
-mutts_audios/
 old/
 references/
 results/
-mutts_midis/
+mutts/
 demo_*.py
 
 *.DS_Store

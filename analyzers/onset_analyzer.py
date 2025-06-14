@@ -373,21 +373,6 @@ class OnsetAnalyzer:
         
         return candidates[best_idx]
     
-    def detect_rhythm_pattern_errors(self, onsets_ref: np.ndarray, onsets_live: np.ndarray, 
-                                   threshold: float = 0.1) -> Tuple[np.ndarray, np.ndarray]:
-        """Detecta errores de patrón rítmico."""
-        intervals_ref = np.diff(onsets_ref)
-        intervals_live = np.diff(onsets_live)
-        
-        # Detectar repeticiones (onsets muy cercanos)
-        repeats_live = np.where(np.diff(onsets_live) < 0.1)[0]
-        
-        # Detectar huecos grandes
-        avg_interval_ref = np.mean(intervals_ref)
-        large_gaps_live = np.where(intervals_live > avg_interval_ref + threshold)[0]
-        
-        return repeats_live, large_gaps_live
-    
     def compare_onsets_without_alignment(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
                                        sr: int, reference_tempo: Optional[float] = None) -> OnsetAnalysisResult:
         """
