@@ -8,3 +8,5 @@ rtmidi
 streamlit
 IPython
 midi2audio
+pydub
+soundfile

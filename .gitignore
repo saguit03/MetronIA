@@ -3,7 +3,7 @@ references/
 results/
 mutts/
 demo_*.py
-
+test_*.py
 *.DS_Store
 .vscode
 .idea
@@ -111,3 +111,4 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+test_directory_structure.py
