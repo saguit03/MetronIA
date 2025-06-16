@@ -4,7 +4,7 @@ Analizador de tempo musical y estructura de compases.
 
 import numpy as np
 import librosa
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from .config import AudioAnalysisConfig
 from .results import TempoAnalysisResult
 

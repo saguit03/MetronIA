@@ -5,8 +5,6 @@ Configuración para el análisis de audio musical.
 from dataclasses import dataclass
 
 
-ANALYSIS_PLOTS_PATH = "results/beat_spectrum_plots"
-
 @dataclass
 class AudioAnalysisConfig:
     """Configuración para el análisis de audio."""

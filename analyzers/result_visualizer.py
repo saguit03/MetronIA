@@ -8,14 +8,6 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-
-try:
-    import seaborn as sns
-    HAS_SEABORN = True
-    print("Seaborn está instalado, se utilizará para visualizaciones avanzadas.")
-except ImportError:
-    HAS_SEABORN = False
-
 from .dtw_results import OnsetDTWAnalysisResult
 
 class ResultVisualizer:
@@ -32,13 +24,12 @@ class ResultVisualizer:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-          # Configurar estilo de matplotlib
+        # Configurar estilo de matplotlib
         plt.style.use('default')
-        if HAS_SEABORN:
-            sns.set_palette("husl")
     
     def plot_onset_errors_detailed(self, dtw_onset_result: OnsetDTWAnalysisResult, 
                                   save_name: str, 
+                                  dir_path: Optional[str] = None,
                                   show_plot: bool = False) -> str:
         """
         Crea un gráfico detallado de los errores de onset DTW.
@@ -46,10 +37,12 @@ class ResultVisualizer:
         Args:
             dtw_onset_result: Resultado del análisis DTW
             save_name: Nombre base para guardar el archivo
+            dir_path: Directorio donde guardar el archivo (opcional)
             show_plot: Si mostrar el gráfico en pantalla
             
         Returns:
-            Ruta del archivo guardado        """
+            Ruta del archivo guardado
+        """
         fig, axes = plt.subplots(1, 2, figsize=(15, 6))
         fig.suptitle(f'Análisis Detallado DTW de Onsets - {save_name}', fontsize=16, fontweight='bold')
         
@@ -110,8 +103,14 @@ class ResultVisualizer:
         
         plt.tight_layout()
         
-        # Guardar
-        output_path = self.output_dir / f"{save_name}_onset_errors_detailed.png"
+        # Guardar en el directorio especificado o usar el por defecto
+        if dir_path:
+            output_dir = Path(dir_path)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"{save_name}.png"
+        else:
+            output_path = self.output_dir / f"{save_name}.png"
+        
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         
         if show_plot:
