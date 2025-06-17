@@ -1,0 +1,15 @@
+change_type,note_index,original_pitch,mutated_pitch,original_velocity,mutated_velocity,modifications,mutated_start,mutated_duration
+modified,10,68.0,74,80.0,67,pitch: 68.0 → 74; velocity: 80.0 → 67,,
+modified,12,66.0,68,80.0,80,pitch: 66.0 → 68,,
+modified,13,65.0,66,80.0,80,pitch: 65.0 → 66,,
+modified,14,61.0,65,80.0,80,pitch: 61.0 → 65,,
+modified,15,63.0,61,80.0,80,pitch: 63.0 → 61,,
+modified,17,65.0,63,80.0,80,pitch: 65.0 → 63,,
+modified,18,66.0,65,80.0,80,pitch: 66.0 → 65,,
+modified,19,70.0,66,80.0,80,pitch: 70.0 → 66,,
+modified,20,68.0,70,80.0,80,pitch: 68.0 → 70,,
+modified,23,66.0,68,80.0,80,pitch: 66.0 → 68,,
+modified,24,65.0,66,80.0,80,pitch: 65.0 → 66,,
+modified,25,61.0,65,80.0,80,pitch: 61.0 → 65,,
+modified,26,63.0,61,80.0,80,pitch: 63.0 → 61,,
+added,27,,63,,80,Note added,0.0,0.0
