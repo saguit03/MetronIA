@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from .dtw_results import OnsetDTWAnalysisResult
+from .onset_results import OnsetDTWAnalysisResult
 
 class ResultVisualizer:
     """

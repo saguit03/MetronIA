@@ -8,8 +8,8 @@ from typing import Tuple, Optional, List, Dict
 from scipy.spatial.distance import cdist
 from scipy.optimize import minimize
 from .config import AudioAnalysisConfig
-from .dtw_results import OnsetMatch, OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
-
+from .onset_results import OnsetMatch, OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
+from .onset_utils import OnsetUtils, DTWUtils, OnsetMatchingUtils
 
 class OnsetDTWAnalyzer:
     """
@@ -27,116 +27,23 @@ class OnsetDTWAnalyzer:
     def detect_onsets_with_pitch(self, audio: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray]:
         """
         Detecta onsets y extrae la altura en cada onset.
-        
-        Args:
-            audio: Señal de audio
-            sr: Sample rate
-            
-        Returns:
-            Tuple con (onsets_times, pitches) donde:
-            - onsets_times: Tiempos de onset en segundos
-            - pitches: Alturas en Hz en cada onset
+        Delegado a OnsetUtils para funcionalidad común.
         """
-        # Detectar onsets
-        onsets = librosa.onset.onset_detect(y=audio, sr=sr, units='time')
-        
-        # Extraer pitch usando piptrack
-        pitches, magnitudes = librosa.piptrack(y=audio, sr=sr, threshold=0.1)
-        
-        # Obtener pitch en cada onset
-        onset_pitches = []
-        for onset_time in onsets:
-            # Convertir tiempo a frame
-            onset_frame = librosa.time_to_frames(onset_time, sr=sr)
-            
-            # Buscar el pitch más fuerte en ese frame
-            if onset_frame < pitches.shape[1]:
-                frame_pitches = pitches[:, onset_frame]
-                frame_magnitudes = magnitudes[:, onset_frame]
-                
-                # Encontrar el pitch con mayor magnitud
-                if np.any(frame_magnitudes > 0):
-                    max_mag_idx = np.argmax(frame_magnitudes)
-                    pitch_hz = frame_pitches[max_mag_idx]
-                    if pitch_hz > 0:
-                        onset_pitches.append(pitch_hz)
-                    else:
-                        onset_pitches.append(0.0)  # Pitch no detectado
-                else:
-                    onset_pitches.append(0.0)
-            else:
-                onset_pitches.append(0.0)
-        
-        return onsets, np.array(onset_pitches)
-    
-    def hz_to_midi(self, freq_hz: float) -> float:
-        """Convierte frecuencia en Hz a número MIDI."""
-        if freq_hz <= 0:
-            return 0.0
-        return 69 + 12 * np.log2(freq_hz / 440.0)
+        return OnsetUtils.detect_onsets_with_pitch(audio, sr)
     
     def calculate_pitch_similarity(self, pitch1_hz: float, pitch2_hz: float) -> float:
         """
         Calcula similitud de altura entre dos pitches.
-        
-        Returns:
-            Similitud entre 0 y 1 (1 = idénticos)
+        Delegado a OnsetUtils para funcionalidad común.
         """
-        if pitch1_hz <= 0 or pitch2_hz <= 0:
-            return 0.0
-        
-        # Convertir a MIDI para trabajar en semitonos
-        midi1 = self.hz_to_midi(pitch1_hz)
-        midi2 = self.hz_to_midi(pitch2_hz)
-        
-        # Calcular diferencia en semitonos
-        semitone_diff = abs(midi1 - midi2)
-        
-        # Similitud exponencial decreciente
-        if semitone_diff > self.max_pitch_diff:
-            return 0.0
-        
-        similarity = np.exp(-semitone_diff / self.max_pitch_diff)
-        return similarity
+        return OnsetUtils.calculate_pitch_similarity(pitch1_hz, pitch2_hz, self.max_pitch_diff)
     
     def create_dtw_features(self, onsets: np.ndarray, pitches: np.ndarray) -> np.ndarray:
         """
         Crea características para DTW combinando tiempo y pitch.
-        
-        Args:
-            onsets: Tiempos de onset
-            pitches: Alturas en Hz
-            
-        Returns:
-            Matriz de características [n_onsets, 2] con [tiempo_normalizado, pitch_midi]
+        Delegado a DTWUtils para funcionalidad común.
         """
-        # Normalizar tiempos al rango [0, 1]
-        if len(onsets) > 1:
-            time_normalized = (onsets - onsets[0]) / (onsets[-1] - onsets[0])
-        else:
-            time_normalized = np.array([0.0])
-        
-        # Convertir pitches a MIDI
-        pitch_midi = np.array([self.hz_to_midi(p) for p in pitches])
-        
-        # Normalizar pitches al rango aproximado [0, 1]
-        if np.any(pitch_midi > 0):
-            valid_pitches = pitch_midi[pitch_midi > 0]
-            if len(valid_pitches) > 0:
-                pitch_min, pitch_max = valid_pitches.min(), valid_pitches.max()
-                if pitch_max > pitch_min:
-                    pitch_normalized = np.where(pitch_midi > 0, 
-                                              (pitch_midi - pitch_min) / (pitch_max - pitch_min), 
-                                              0.0)
-                else:
-                    pitch_normalized = np.where(pitch_midi > 0, 0.5, 0.0)
-            else:
-                pitch_normalized = np.zeros_like(pitch_midi)
-        else:
-            pitch_normalized = np.zeros_like(pitch_midi)        
-        # Combinar características
-        features = np.column_stack([time_normalized, pitch_normalized])
-        return features
+        return DTWUtils.create_dtw_features(onsets, pitches, self.pitch_weight, self.time_weight)
     
     def dtw_distance(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, float]:
         """

@@ -23,7 +23,7 @@ from .tempo_analyzer import TempoAnalyzer
 from .beat_spectrum_analyzer import BeatSpectrumAnalyzer
 from .visualizer import AudioVisualizer
 from .result_visualizer import ResultVisualizer
-from .dtw_results import OnsetDTWAnalysisResult, OnsetMatch
+from .onset_results import OnsetDTWAnalysisResult, OnsetMatch
 from .music_analyzer import MusicAnalyzer
 from .music_analyzer import analyze_performance
 

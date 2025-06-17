@@ -8,7 +8,8 @@ from dataclasses import dataclass
 @dataclass
 class AudioAnalysisConfig:
     """Configuración para el análisis de audio."""
-    hop_length: int = 512
+    hop_length: int = 1024
+    n_chroma: int = 12
     n_mfcc: int = 20
     onset_margin: float = 0.005
     tempo_threshold: float = 5.0

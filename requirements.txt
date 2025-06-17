@@ -2,7 +2,6 @@ pandas
 numpy
 NumPy==2.1
 librosa
-matplotlib
 mido
 rtmidi
 streamlit
@@ -10,3 +9,10 @@ IPython
 midi2audio
 pydub
 soundfile
+pyrubberband
+matplotlib<3.10
+pyaudio
+PyQt5
+tqdm
+pretty_midi
+pkg_resources

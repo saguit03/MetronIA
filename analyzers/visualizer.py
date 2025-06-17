@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .config import AudioAnalysisConfig
 from .results import BeatSpectrumResult
-from .dtw_results import OnsetDTWAnalysisResult
+from .onset_results import OnsetDTWAnalysisResult
 
 class AudioVisualizer:
     """Visualizador de análisis de audio."""

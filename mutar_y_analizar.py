@@ -246,7 +246,6 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
                 reference_tempo=base_tempo,
                 verbose=False
             )            # Generar archivos de cambios de mutación en el directorio de análisis individual
-            # Usar el método existing pero con nombres personalizados
             if mutation.success and mutation.excerpt is not None:
                 # Analizar cambios usando el método privado de la mutación
                 changes = mutation._analyze_changes(original_excerpt, mutation.excerpt)
@@ -256,10 +255,6 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
                 changes_csv_path = Path(analysis_dir) / "changes_detailed.csv"
                 mutation._save_changes_to_csv(changes, changes_csv_path)
                 
-                # Guardar TXT con nombre personalizado: changes_summary.txt
-                changes_txt_path = Path(analysis_dir) / "changes_summary.txt"
-                mutation._save_summary_to_txt(changes, mutation_tempo, base_tempo, changes_txt_path)
-            
             # Obtener datos básicos para el CSV consolidado (sin duplicar el CSV individual)
             dtw_onset_result = analysis_result.get('dtw_onsets')
             if dtw_onset_result:
@@ -279,23 +274,18 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
                     'tempo_reference_bpm': f"{analysis_result['tempo'].tempo_ref:.2f}",
                     'tempo_live_bpm': f"{analysis_result['tempo'].tempo_live:.2f}",
                     'tempo_difference_bpm': f"{analysis_result['tempo'].difference:.2f}",
-                    'tempo_similar': analysis_result['tempo'].is_similar,
-                    # Nuevos campos de proporción de tempo
-                    'tempo_proportion': f"{analysis_result.get('tempo_proportion', 1.0):.3f}",
-                    'original_ref_tempo_bpm': f"{getattr(analysis_result['tempo'], 'original_ref_tempo', analysis_result['tempo'].tempo_ref):.2f}",
-                    'original_live_tempo_bpm': f"{getattr(analysis_result['tempo'], 'original_live_tempo', analysis_result['tempo'].tempo_live):.2f}",
-                    'resampling_applied': analysis_result.get('resampling_applied', False),
-                    'dtw_assessment': analysis_result.get('dtw_analysis', {}).get('overall_assessment', 'N/A'),
-                    'audio_file_path': str(audio_path),
-                    'reference_audio_path': str(reference_audio_path)
                 }
                 
                 csv_data.append(csv_row)
             else:
                 print(f"⚠️ No se obtuvieron resultados DTW para {category_name}.{mutation_name}")
+
                 
         except Exception as e:
             print(f"❌ Error analizando {category_name}.{mutation_name}: {e}")
+            # Print traceback para depuración
+            import traceback
+            traceback.print_exc()
             # Agregar una fila con datos mínimos para no perder la información
             csv_data.append({
                 'mutation_category': category_name,

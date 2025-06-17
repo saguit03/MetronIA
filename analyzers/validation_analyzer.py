@@ -73,7 +73,7 @@ class MutationValidationAnalyzer:
         Returns:
             ValidationResult o None si no se pueden cargar los archivos        """
         try:
-            # Rutas de los archivos según nueva estructura
+            # Rutas de los archivos
             changes_path = self.results_base_dir / f"{midi_name}_Mutaciones" / f"{midi_name}_{mutation_name}" / "changes_detailed.csv"
             analysis_path = self.results_base_dir / f"{midi_name}_Mutaciones" / f"{midi_name}_{mutation_name}" / "analysis.csv"
             

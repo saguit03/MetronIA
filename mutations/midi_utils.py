@@ -8,13 +8,12 @@ import numpy as np
 from mdtk.utils import synthesize_from_note_df
 from mutations.config import MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
 from mutations.results import MutationResult
+from utils.audio_utils import save_audio
 
 def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-    Path(MUTATIONS_AUDIO_PATH).mkdir(parents=True, exist_ok=True)
-    output_filename = Path(MUTATIONS_AUDIO_PATH) / f"{save_name}.wav"
-    wavfile.write(output_filename, sample_rate, audio_normalized)
+    output_filename = save_audio(audio_normalized, save_name, MUTATIONS_AUDIO_PATH, sample_rate)
     return output_filename
 
 def load_midi_with_mido(midi_file_path, bpm=120):

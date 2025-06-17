@@ -14,12 +14,15 @@ class BeatSpectrumAnalyzer:
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
         self.feature_extractor = AudioFeatureExtractor(config)
-    
-    def analyze_beat_spectrum(self, ref_feat: np.ndarray, aligned_live_feat: np.ndarray) -> BeatSpectrumResult:
+
+    def analyze_beat_spectrum(self,  audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> BeatSpectrumResult:
         """Analiza el beat spectrum de las características alineadas."""
+        reference_features = self.feature_extractor.extract_chroma_features(audio_ref, sr)
+        aligned_live_features = self.feature_extractor.extract_chroma_features(audio_live, sr)
+        
         # Calcular matrices de auto-semejanza
-        S_ref = self.feature_extractor.compute_self_similarity_matrix(ref_feat)
-        S_aligned = self.feature_extractor.compute_self_similarity_matrix(aligned_live_feat)
+        S_ref = self.feature_extractor.compute_self_similarity_matrix(reference_features)
+        S_aligned = self.feature_extractor.compute_self_similarity_matrix(aligned_live_features)
         
         # Calcular beat spectrums
         beat_ref = self.feature_extractor.compute_beat_spectrum(S_ref)

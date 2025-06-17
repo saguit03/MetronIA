@@ -68,21 +68,20 @@ class TempoAnalyzer:
         tempos = []
         
         try:
-            # Método 1: beat_track estándar
             tempo_bt, _ = librosa.beat.beat_track(y=audio, sr=sr)
             tempos.append(float(tempo_bt.item()))
         except:
-            pass
+            import traceback
+            traceback.print_exc()
         
         try:
-            # Método 2: tempo estimation con aggregate function
             tempo_agg = librosa.feature.rhythm.tempo(y=audio, sr=sr, aggregate=np.median)[0]
             tempos.append(float(tempo_agg))
         except:
-            pass
+            import traceback
+            traceback.print_exc()
         
         try:
-            # Método 3: onset-based tempo estimation
             onset_frames = librosa.onset.onset_detect(y=audio, sr=sr)
             if len(onset_frames) > 3:
                 onset_times = librosa.frames_to_time(onset_frames, sr=sr)
@@ -94,7 +93,8 @@ class TempoAnalyzer:
                         tempo_onset = 60.0 / avg_interval
                         tempos.append(float(tempo_onset))
         except:
-            pass
+            import traceback
+            traceback.print_exc()
         
         # Remover duplicados y valores extremos
         tempos = [t for t in tempos if 40 <= t <= 300]  # Rango razonable de tempo
@@ -202,7 +202,7 @@ class TempoAnalyzer:
         )
     
     def analyze_tempo_with_reference(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
-                                   sr: int, reference_tempo: float = None) -> TempoAnalysisResult:
+                                   sr: int, reference_tempo: Optional[float] = None) -> TempoAnalysisResult:
         """
         Análisis de tempo usando un tempo de referencia conocido para mayor precisión.
         

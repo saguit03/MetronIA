@@ -8,6 +8,13 @@ from typing import Tuple
 from .config import AudioAnalysisConfig
 from .feature_extractor import AudioFeatureExtractor
 
+import soundfile as sf
+import tempfile
+import os
+from pathlib import Path
+from typing import Optional, Dict, Any, Tuple
+from pydub import AudioSegment
+from pyrubberband import pyrb
 
 class DTWAligner:
     """Alineador usando Dynamic Time Warping."""
@@ -16,33 +23,45 @@ class DTWAligner:
         self.config = config
         self.feature_extractor = AudioFeatureExtractor(config)
     
-    def align_features(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Alinea características usando DTW."""
-        # Extraer características
-        ref_feat = self.feature_extractor.extract_mfcc_features(audio_ref, sr)
-        live_feat = self.feature_extractor.extract_mfcc_features(audio_live, sr)
+    def synchronize_audios(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Sincroniza dos audios usando DTW y devuelve el audio en vivo alineado.
         
-        # DTW para alinear
-        D, wp = librosa.sequence.dtw(X=ref_feat.T, Y=live_feat.T, metric='cosine')
-        wp = np.array(wp[::-1])  # Asegurar orden de principio a fin
-        
-        # Aplicar alineamiento
-        aligned_live_feat = np.zeros_like(ref_feat)
-        for ref_idx, live_idx in wp:
-            if ref_idx < len(aligned_live_feat) and live_idx < len(live_feat):
-                aligned_live_feat[ref_idx] = live_feat[live_idx]
-        
-        return ref_feat, aligned_live_feat, wp
+        Args:
+            audio_ref: Audio de referencia
+            audio_live: Audio en vivo
+            sr: Sample rate
+            
+        Returns:
+            Tuple con el audio de referencia y el audio en vivo alineado
+        """
+        wp, wp_s, chroma_ref, chroma_live = self.align_chroma_features(audio_ref, audio_live, sr)
+        aligned_audio_live = self.sync(audio_live, wp_s, sr, len(audio_ref))
+        return aligned_audio_live, wp, wp_s
+
+    def align_chroma_features(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        chroma_ref = self.feature_extractor.extract_chroma_features(audio_ref, sr)
+        chroma_live = self.feature_extractor.extract_chroma_features(audio_live, sr)
+        D, wp = librosa.sequence.dtw(X=chroma_ref.T, Y=chroma_live.T, metric='cosine')
+        wp_s = librosa.frames_to_time(wp, sr=sr, hop_length=self.config.hop_length)
+        return wp, wp_s, chroma_ref, chroma_live
     
-    def evaluate_dtw_path(self, wp: np.ndarray) -> Tuple[np.ndarray, bool]:
-        """Evalúa la calidad del camino DTW."""
-        wp = np.array(wp)
-        ref_idxs, live_idxs = wp[:, 0], wp[:, 1]
-        deltas = live_idxs - ref_idxs
-        deviations = np.abs(deltas - np.mean(deltas))
+    def sync(self, audio, wp_s, sample_rate, out_len, n_arrows = 10):
+        time_map = [(int(x*sample_rate), int(y*sample_rate)) for (x, y) in wp_s[::len(wp_s)//n_arrows]]
+        time_map.append((len(audio), out_len))
+        return pyrb.timemap_stretch(audio, sample_rate, time_map)
+
+    def calculate_dtw(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int, inversed = True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        # Extraer características
+        reference_mfcc_features = self.feature_extractor.extract_mfcc_features(audio_ref, sr)
+        live_mfcc_features = self.feature_extractor.extract_mfcc_features(audio_live, sr)
         
-        is_regular = np.max(deviations) <= self.config.dtw_tolerance * len(ref_idxs)
-        return deviations, is_regular
+        D, wp = librosa.sequence.dtw(X=reference_mfcc_features.T, Y=live_mfcc_features.T, metric='cosine')
+
+        if inversed:
+            wp = np.array(wp[::-1])  # Asegurar orden de principio a fin
+        
+        return wp, reference_mfcc_features, live_mfcc_features
     
     def analyze_dtw_timing_consistency(self, wp: np.ndarray, audio_ref: np.ndarray, 
                                       audio_live: np.ndarray, sr: int) -> dict:
@@ -143,11 +162,10 @@ class DTWAligner:
             return "Aceptable: DTW correcto pero algunos onsets desplazados"
         elif well_aligned_ratio >= 0.4:
             return "Problemático: DTW aparentemente regular pero muchos onsets desplazados"
-        else:
-            return "Crítico: DTW y onsets severamente inconsistentes"
+        else:            return "Crítico: DTW y onsets severamente inconsistentes"
     
-    def evaluate_dtw_path_enhanced(self, wp: np.ndarray, audio_ref: np.ndarray = None, 
-                                  audio_live: np.ndarray = None, sr: int = None) -> dict:
+    def evaluate_dtw_path_enhanced(self, wp: np.ndarray, audio_ref: Optional[np.ndarray] = None, 
+                                  audio_live: Optional[np.ndarray] = None, sr: Optional[int] = None) -> dict:
         """
         Evaluación mejorada del camino DTW que incluye análisis de onsets.
         
@@ -189,37 +207,10 @@ class DTWAligner:
         
         return result
     
-    def align_features_for_tempo_comparison(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Alinea características para comparación de tempo global, manteniendo timing original para onsets.
-        
-        Este método permite:
-        1. Análisis de beat spectrum con alineamiento DTW (para comparar patrones rítmicos globales)
-        2. Análisis de onsets SIN alineamiento DTW (para detectar errores de timing reales)
-        
-        Args:
-            audio_ref: Audio de referencia
-            audio_live: Audio en vivo
-            sr: Sample rate
-            
-        Returns:
-            Tupla con (ref_feat, aligned_live_feat_for_beat, wp, unaligned_live_feat_for_onsets)
-        """
-        # Extraer características
-        ref_feat = self.feature_extractor.extract_mfcc_features(audio_ref, sr)
-        live_feat = self.feature_extractor.extract_mfcc_features(audio_live, sr)
-        
-        # DTW para alineamiento
-        D, wp = librosa.sequence.dtw(X=ref_feat.T, Y=live_feat.T, metric='cosine')
-        wp = np.array(wp[::-1])  # Asegurar orden de principio a fin
-        
-        # Crear características alineadas SOLO para beat spectrum
-        aligned_live_feat_for_beat = np.zeros_like(ref_feat)
+    def align_features_for_tempo_comparison(self, wp, reference_mfcc_features, live_mfcc_features) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        aligned_live_mfcc_features_for_beat = np.zeros_like(reference_mfcc_features)
         for ref_idx, live_idx in wp:
-            if ref_idx < len(aligned_live_feat_for_beat) and live_idx < len(live_feat):
-                aligned_live_feat_for_beat[ref_idx] = live_feat[live_idx]
+            if ref_idx < len(aligned_live_mfcc_features_for_beat) and live_idx < len(live_mfcc_features):
+                aligned_live_mfcc_features_for_beat[ref_idx] = live_mfcc_features[live_idx]
         
-        # Mantener características NO alineadas para análisis de onsets
-        unaligned_live_feat_for_onsets = live_feat
-        
-        return ref_feat, aligned_live_feat_for_beat, wp, unaligned_live_feat_for_onsets
+        return aligned_live_mfcc_features_for_beat

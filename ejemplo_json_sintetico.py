@@ -13,7 +13,7 @@ from pathlib import Path
 # Agregar el directorio actual al path para importar módulos
 sys.path.insert(0, str(Path(__file__).parent))
 
-from analyzers.dtw_results import OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
+from analyzers.onset_results import OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
 
 def create_mock_dtw_result():
     """Crea un OnsetDTWAnalysisResult de ejemplo con datos sintéticos."""

@@ -36,3 +36,30 @@ class AudioFeatureExtractor:
             np.mean(np.diag(similarity_matrix, k=lag)) 
             for lag in range(1, n)
         ])
+
+    def extract_chroma_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        """Extrae características cromáticas del audio."""
+        chroma = librosa.feature.chroma_cqt(
+            y=audio, 
+            sr=sr, 
+            hop_length=self.config.hop_length, 
+            n_chroma=self.config.n_chroma
+        )
+        return librosa.util.normalize(chroma, axis=1).T
+    
+    def extract_combined_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        """
+        Extrae características combinadas MFCC + chroma del audio.
+        
+        Devuelve una matriz (frames, n_mfcc + n_chroma)
+        """
+        mfcc = self.extract_mfcc_features(audio, sr)  # (frames, n_mfcc)
+        chroma = self.extract_chroma_features(audio, sr)  # (frames, n_chroma)
+        
+        # Alinear por cantidad de frames
+        min_frames = min(len(mfcc), len(chroma))
+        mfcc = mfcc[:min_frames]
+        chroma = chroma[:min_frames]
+        
+        combined = np.concatenate([mfcc, chroma], axis=1)  # (frames, features)
+        return combined

@@ -20,7 +20,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from analyzers.music_analyzer import MusicAnalyzer
-from analyzers.dtw_results import OnsetDTWAnalysisResult
+from analyzers.onset_results import OnsetDTWAnalysisResult
 
 
 def validate_arguments():
