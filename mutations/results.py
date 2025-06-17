@@ -91,12 +91,11 @@ class MutationResult:
         
         # Guardar CSV con cambios detallados
         csv_path = output_path / f"{self.name}_changes.csv"
-        self._save_changes_to_csv(changes, csv_path)
-        
+        self._save_changes_to_csv(changes, csv_path)        
         # Guardar TXT con resumen
         txt_path = output_path / f"{self.name}_summary.txt"
         self._save_summary_to_txt(changes, mutation_tempo, base_tempo, txt_path)
-    
+        
     def _analyze_changes(self, original: pd.DataFrame, mutated: pd.DataFrame) -> List[Dict[str, Any]]:
         """
         Analiza las diferencias entre el excerpt original y el mutado.
@@ -118,6 +117,9 @@ class MutationResult:
         self._detect_modified_notes(original_notes, mutated_notes, changes)
         self._detect_removed_notes(original_notes, mutated_notes, changes)
         self._detect_added_notes(original_notes, mutated_notes, changes)
+        
+        # Detectar cambios de tempo/timing
+        self._detect_tempo_changes(original_notes, mutated_notes, changes)
         
         return changes
     
@@ -213,6 +215,101 @@ class MutationResult:
                     'modifications': 'Note added'
                 })
     
+    def _detect_tempo_changes(self, original_notes: Dict, mutated_notes: Dict, 
+                             changes: List[Dict[str, Any]]) -> None:
+        """
+        Detecta cambios de tempo/timing comparando los patrones temporales.
+        
+        Args:
+            original_notes: Diccionario de notas originales
+            mutated_notes: Diccionario de notas mutadas
+            changes: Lista donde añadir los cambios detectados
+        """
+        if not original_notes or not mutated_notes:
+            return
+            
+        # Obtener todos los tiempos de inicio
+        orig_starts = [note['start'] for note in original_notes.values()]
+        mut_starts = [note['start'] for note in mutated_notes.values()]
+        
+        if len(orig_starts) != len(mut_starts):
+            # Diferente número de notas - puede indicar problemas de timing
+            return
+            
+        # Calcular intervalos entre notas consecutivas
+        orig_intervals = []
+        mut_intervals = []
+        
+        for i in range(1, len(orig_starts)):
+            orig_intervals.append(orig_starts[i] - orig_starts[i-1])
+            mut_intervals.append(mut_starts[i] - mut_starts[i-1])
+        
+        # Detectar cambios significativos en los intervalos
+        timing_changes = 0
+        total_shift = 0.0
+        
+        for i, (orig_interval, mut_interval) in enumerate(zip(orig_intervals, mut_intervals)):
+            if abs(orig_interval - mut_interval) > 0.01:  # Tolerancia de 10ms
+                timing_changes += 1
+                total_shift += abs(orig_interval - mut_interval)
+        
+        # Si hay cambios significativos, registrarlos
+        if timing_changes > len(orig_intervals) * 0.3:  # Si más del 30% de los intervalos cambian
+            # Estimar el factor de tempo
+            if orig_intervals and mut_intervals:
+                avg_orig_interval = sum(orig_intervals) / len(orig_intervals)
+                avg_mut_interval = sum(mut_intervals) / len(mut_intervals)
+                
+                if avg_orig_interval > 0:
+                    tempo_factor = avg_orig_interval / avg_mut_interval
+                    
+                    # Determinar tipo de cambio de tempo
+                    if tempo_factor > 1.05:  # Más rápido
+                        change_type = "tempo_faster"
+                    elif tempo_factor < 0.95:  # Más lento
+                        change_type = "tempo_slower"
+                    else:
+                        change_type = "timing_variation"
+                    
+                    changes.append({
+                        'change_type': change_type,
+                        'tempo_factor': tempo_factor,
+                        'affected_intervals': timing_changes,
+                        'total_intervals': len(orig_intervals),
+                        'avg_shift_seconds': total_shift / max(timing_changes, 1),
+                        'modifications': f"Tempo change detected: factor {tempo_factor:.3f}, {timing_changes}/{len(orig_intervals)} intervals affected"
+                    })
+        
+        # Detectar desplazamientos constantes (acelerando/ritardando)
+        shifts = []
+        for i, (orig_start, mut_start) in enumerate(zip(orig_starts, mut_starts)):
+            shift = mut_start - orig_start
+            shifts.append(shift)
+        
+        # Si hay un patrón de aceleración o desaceleración
+        if len(shifts) > 2:
+            # Calcular la tendencia de los desplazamientos
+            trend = 0
+            for i in range(1, len(shifts)):
+                if shifts[i] > shifts[i-1]:                    trend += 1
+                elif shifts[i] < shifts[i-1]:
+                    trend -= 1
+            
+            # Si hay una tendencia clara
+            if abs(trend) > len(shifts) * 0.5:
+                if trend > 0:
+                    change_type = "accelerando"
+                else:
+                    change_type = "ritardando"
+                
+                changes.append({
+                    'change_type': change_type,
+                    'trend_strength': abs(trend) / len(shifts),
+                    'max_shift': max(shifts),
+                    'min_shift': min(shifts),
+                    'modifications': f"{change_type.capitalize()} detected: trend strength {abs(trend)/len(shifts):.3f}"
+                })
+
     def _save_changes_to_csv(self, changes: List[Dict[str, Any]], csv_path: Path) -> None:
         """
         Guarda los cambios detallados en un archivo CSV.
@@ -221,16 +318,62 @@ class MutationResult:
             changes: Lista de cambios detectados
             csv_path: Ruta donde guardar el CSV
         """
+        # Si no hay cambios detectados en notas individuales, 
+        # intentar inferir el tipo de mutación del nombre
         if not changes:
-            # Crear CSV vacío indicando que no hay cambios
-            df = pd.DataFrame([{
-                'change_type': 'none',
-                'modifications': 'No changes detected'
-            }])
-        else:
-            df = pd.DataFrame(changes)
+            mutation_type = self._infer_mutation_type_from_name()
+            changes = [{
+                'change_type': mutation_type,
+                'modifications': f'Global {mutation_type} mutation applied - changes affect timing/tempo rather than individual notes',
+                'mutation_name': self.name,
+                'mutation_description': self.description
+            }]
         
+        df = pd.DataFrame(changes)
         df.to_csv(csv_path, index=False, encoding='utf-8')
+    
+    def _infer_mutation_type_from_name(self) -> str:
+        """
+        Infiere el tipo de mutación basándose en el nombre y descripción.
+        
+        Returns:
+            Tipo de mutación inferido
+        """
+        name_lower = self.name.lower()
+        desc_lower = self.description.lower()
+        
+        # Detectar mutaciones de tempo
+        if any(keyword in name_lower for keyword in ['tempo', 'faster', 'slower', 'speed']):
+            if 'faster' in name_lower or 'fast' in name_lower:
+                return 'tempo_faster'
+            elif 'slower' in name_lower or 'slow' in name_lower:
+                return 'tempo_slower'
+            else:
+                return 'tempo_change'
+        
+        # Detectar mutaciones de timing
+        elif any(keyword in name_lower for keyword in ['accelerando', 'ritardando', 'fluctuation']):
+            if 'accelerando' in name_lower:
+                return 'accelerando'
+            elif 'ritardando' in name_lower:
+                return 'ritardando'
+            elif 'fluctuation' in name_lower:
+                return 'tempo_fluctuation'
+            else:
+                return 'timing_change'
+        
+        # Detectar mutaciones de altura/pitch
+        elif any(keyword in name_lower for keyword in ['pitch', 'note', 'altura', 'too_late', 'too_soon']):
+            if 'too_late' in name_lower or 'late' in name_lower:
+                return 'note_too_late'
+            elif 'too_soon' in name_lower or 'early' in name_lower:
+                return 'note_too_soon'
+            else:
+                return 'pitch_change'
+        
+        # Por defecto
+        else:
+            return 'unknown'
     
     def _save_summary_to_txt(self, changes: List[Dict[str, Any]], mutation_tempo: int,
                             base_tempo: int, txt_path: Path) -> None:

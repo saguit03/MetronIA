@@ -146,8 +146,7 @@ class MutationValidationAnalyzer:
             true_negatives=tn,
             false_negatives=fn,
             precision=precision,
-            recall=recall,
-            f1_score=f1_score,
+            recall=recall,            f1_score=f1_score,
             accuracy=accuracy,
             detected_changes=len(detected_errors),
             expected_changes=len(expected_changes),
@@ -169,11 +168,25 @@ class MutationValidationAnalyzer:
         for _, row in changes_df.iterrows():
             change_type = row.get('change_type', '')
             
+            # Cambios en notas individuales
             if change_type in ['modified', 'added', 'removed']:
                 expected_changes.append({
                     'start_time': row.get('start_time', row.get('original_start', 0.0)),
                     'pitch': row.get('pitch', row.get('original_pitch', 60)),
                     'change_type': change_type,
+                    'row_data': row.to_dict()
+                })
+            
+            # Cambios de tempo/timing - afectan a todas las notas
+            elif change_type in ['tempo_faster', 'tempo_slower', 'tempo_change', 
+                                'accelerando', 'ritardando', 'tempo_fluctuation',
+                                'note_too_late', 'note_too_soon', 'timing_change']:
+                # Para cambios globales, marcamos que se esperan errores de timing
+                expected_changes.append({
+                    'start_time': -1.0,  # Valor especial para cambios globales
+                    'pitch': -1,         # Valor especial para cambios globales
+                    'change_type': change_type,
+                    'global_change': True,
                     'row_data': row.to_dict()
                 })
         
@@ -263,8 +276,7 @@ class MutationValidationAnalyzer:
         
         for note in all_notes:
             # Verificar si esta nota debería haberse detectado como error
-            should_be_detected = self._note_should_be_detected(note, expected_changes)
-            
+            should_be_detected = self._note_should_be_detected(note, expected_changes)            
             # Verificar si esta nota fue detectada como error
             was_detected = self._note_was_detected(note, detected_errors)
             
@@ -286,9 +298,18 @@ class MutationValidationAnalyzer:
             True si la nota debería haberse detectado como error
         """
         for change in expected_changes:
-            if (abs(note['start_time'] - change['start_time']) <= self.tolerance_seconds and
-                note['pitch'] == change['pitch']):
-                return True
+            # Cambios específicos de notas
+            if not change.get('global_change', False):
+                if (abs(note['start_time'] - change['start_time']) <= self.tolerance_seconds and
+                    note['pitch'] == change['pitch']):
+                    return True
+            else:
+                # Cambios globales (tempo, timing) - cualquier error detectado cuenta
+                change_type = change.get('change_type', '')
+                if change_type in ['tempo_faster', 'tempo_slower', 'tempo_change',
+                                   'accelerando', 'ritardando', 'tempo_fluctuation',
+                                   'note_too_late', 'note_too_soon', 'timing_change']:
+                    return True  # Para cambios globales, esperamos que se detecten errores
         return False
     
     def _note_was_detected(self, note: Dict[str, Any], 
@@ -335,16 +356,14 @@ class MutationValidationAnalyzer:
                 
                 # Quitar el prefijo del MIDI para obtener el nombre de la mutación
                 if dir_name.startswith(f"{midi_name}_"):
-                    mutation_name = dir_name[len(f"{midi_name}_"):]
-                    
+                    mutation_name = dir_name[len(f"{midi_name}_"):]                    
                     # Buscar los archivos de changes y analysis en este directorio
                     changes_file = analysis_dir / "changes_detailed.csv"
                     analysis_file = analysis_dir / "analysis.csv"
                     
                     if changes_file.exists() and analysis_file.exists():
-                        # Para la categoría, intentamos extraerla del nombre de la mutación
-                        # o usar un valor por defecto si no se puede determinar
-                        category = self._extract_category_from_mutation_name(mutation_name)
+                        # Usar las categorías definidas en MutationManager
+                        category = self._get_mutation_category(mutation_name)
                         
                         result = self._validate_from_files(
                             str(changes_file), str(analysis_file), 
@@ -612,8 +631,7 @@ RECOMENDACIONES:
                 'mutation_name': individual.mutation_name,
                 'true_positives': individual.true_positives,
                 'false_positives': individual.false_positives,
-                'true_negatives': individual.true_negatives,
-                'false_negatives': individual.false_negatives,
+                'true_negatives': individual.true_negatives,                'false_negatives': individual.false_negatives,
                 'precision': individual.precision,
                 'recall': individual.recall,
                 'f1_score': individual.f1_score,
@@ -627,35 +645,49 @@ RECOMENDACIONES:
         df.to_csv(output_path, index=False, encoding='utf-8')
         print(f"✅ Resultados de validación guardados en CSV: {output_path}")
     
-    def _extract_category_from_mutation_name(self, mutation_name: str) -> str:
+    def _get_mutation_category(self, mutation_name: str) -> str:
         """
-        Extrae la categoría de una mutación basándose en su nombre.
+        Obtiene la categoría de una mutación basándose en las categorías definidas en MutationManager.
         
         Args:
             mutation_name: Nombre de la mutación
             
         Returns:
-            Categoría estimada de la mutación
+            Categoría de la mutación según MutationManager
         """
-        # Mapeo de patrones comunes en nombres de mutaciones a categorías
-        category_patterns = {
-            'ritmo': ['ritmo', 'rhythm', 'beat', 'timing'],
-            'velocidad': ['velocidad', 'velocity', 'dynamics', 'vol'],
-            'tempo': ['tempo', 'speed', 'bpm'],
-            'altura': ['altura', 'pitch', 'note', 'transpose'],
-            'ornamentacion': ['ornament', 'grace', 'trill', 'mordent'],
-            'articulacion': ['articul', 'staccato', 'legato', 'accent']
+        # Mapeo directo basado en las categorías y mutaciones definidas en MutationManager
+        mutation_categories = {
+            # pitch_errors
+            "pitch_shift": "pitch_errors",
+            
+            # tempo_errors
+            "faster_tempo": "tempo_errors",
+            "a_lot_faster_tempo": "tempo_errors", 
+            "slower_tempo": "tempo_errors",
+            "a_lot_slower_tempo": "tempo_errors",
+            "accelerando": "tempo_errors",
+            "ritardando": "tempo_errors",
+            "tempo_fluctuation": "tempo_errors",
+            
+            # timing_errors
+            "note_too_soon": "timing_errors",
+            "note_too_late": "timing_errors",
+            
+            # duration_errors
+            "note_held_too_long": "duration_errors",
+            "note_cut_too_soon": "duration_errors",
+            
+            # note_errors
+            "note_missing": "note_errors",
+            "note_not_expected": "note_errors",
+            
+            # articulation_errors
+            "articulated_legato": "articulation_errors",
+            "articulated_staccato": "articulation_errors",
+            "articulated_accentuated": "articulation_errors",
         }
         
-        mutation_lower = mutation_name.lower()
-        
-        for category, patterns in category_patterns.items():
-            for pattern in patterns:
-                if pattern in mutation_lower:
-                    return category
-        
-        # Si no se puede determinar, usar "unknown"
-        return "unknown"
+        return mutation_categories.get(mutation_name, "unknown")
     
     def _validate_from_files(self, changes_file_path: str, analysis_file_path: str,
                            mutation_name: str, mutation_category: str) -> Optional[ValidationResult]:

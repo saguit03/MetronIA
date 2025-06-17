@@ -7,6 +7,8 @@ test_*.py
 *.DS_Store
 .vscode
 .idea
+musescore/
+.mscbackup/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
