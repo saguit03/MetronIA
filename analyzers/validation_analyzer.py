@@ -208,9 +208,19 @@ class MutationValidationAnalyzer:
             onset_type = row.get('onset_type', '')
             
             if onset_type in ['late', 'early', 'extra', 'missing']:
+                # Determinar el tiempo de inicio correcto
+                start_time = row.get('ref_onset_time')
+                if start_time is None or pd.isna(start_time):
+                    start_time = row.get('live_onset_time', 0.0)
+                
+                # Determinar el pitch correcto
+                pitch = row.get('pitch', 60)
+                if pitch is None or pd.isna(pitch):
+                    pitch = row.get('ref_pitch_hz', row.get('live_pitch_hz', 60))
+                
                 detected_errors.append({
-                    'start_time': row.get('ref_onset_time', row.get('live_onset_time', 0.0)),
-                    'pitch': row.get('pitch', 60),  # Si está disponible
+                    'start_time': start_time,
+                    'pitch': pitch,
                     'error_type': onset_type,
                     'adjustment_ms': row.get('adjustment_ms', 0.0),
                     'row_data': row.to_dict()

@@ -22,7 +22,6 @@ class TempoAnalysisResult:
     tempo_live: float
     difference: float
     is_similar: bool
-    # Nuevos campos para proporción de tempo
     tempo_proportion: float = 1.0
     original_ref_tempo: float = None
     original_live_tempo: float = None

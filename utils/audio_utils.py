@@ -58,6 +58,10 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
 
 
 def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, wp_s: np.ndarray, save_name, save_dir):
+    # Use default directory if save_dir is None
+    if save_dir is None:
+        save_dir = "aligned"
+    
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8,4))
     librosa.display.waveshow(x_audio, sr=fs, ax=ax2)
     ax2.set(title='Referencia $x_audio$')
@@ -71,6 +75,10 @@ def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, wp_
 
 def save_audio(audio, save_name, save_dir, sample_rate):
     """Guarda el audio en un fichero WAV."""
+    # Use default directory if save_dir is None
+    if save_dir is None:
+        save_dir = "aligned"
+    
     audio_normalized = np.int16(audio / np.max(np.abs(audio)) * 32767)
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     output_filename = Path(save_dir) / f"{save_name}.wav"
@@ -78,6 +86,10 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     return output_filename
 
 def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, hop_length: int, n_arrows = 50, save_name = "aligned", save_dir: Optional[str] = "aligned"):
+    # Use default directory if save_dir is None
+    if save_dir is None:
+        save_dir = "aligned"
+    
     wp, wp_s = calculate_warping_path(x_audio, y_audio, fs, hop_length)
     aligned = sinc_creciente(y_audio, wp_s, fs, len(x_audio), n_arrows=n_arrows)
     save_comparative_plot(x_audio, aligned, fs, wp_s, save_name, save_dir)

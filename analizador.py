@@ -126,6 +126,7 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
             reference_path=ref_path,
             live_path=live_path,
             save_name=analysis_name,
+            save_dir=analysis_name
         )
         
         print(f"✅ Análisis completado exitosamente")

@@ -15,6 +15,8 @@ class OnsetType(Enum):
     CORRECT = "correct"
     LATE = "late" 
     EARLY = "early"
+    MISSING = "missing"
+    EXTRA = "extra"
 
 
 class OnsetMatch(NamedTuple):
@@ -145,7 +147,8 @@ class OnsetDTWAnalysisResult:
             'std_adjustment_ms': self.std_adjustment,
             'max_adjustment_ms': self.max_adjustment,
             'min_adjustment_ms': self.min_adjustment,
-            'alignment_cost': self.alignment_cost,            'tolerance_ms': self.tolerance_ms
+            'alignment_cost': self.alignment_cost,            
+            'tolerance_ms': self.tolerance_ms
         }
     
     def get_csv_data(self, mutation_category: str = "", mutation_name: str = "") -> Dict[str, Any]:
@@ -399,3 +402,69 @@ class OnsetDTWAnalysisResult:
             alignment_cost=data['statistics']['alignment_cost'],
             tolerance_ms=data['metadata']['tolerance_ms']
         )
+    
+    def get_detailed_analysis_rows(self, mutation_category: str = "", mutation_name: str = "") -> List[Dict[str, Any]]:
+        """
+        Genera filas detalladas de análisis para cada onset (matches, missing, extra).
+        
+        Args:
+            mutation_category: Categoría de la mutación
+            mutation_name: Nombre de la mutación
+            
+        Returns:
+            Lista de diccionarios con una fila por cada onset analizado
+        """
+        rows = []
+        
+        # Agregar filas para matches (onsets emparejados)
+        for match in self.matches:
+            rows.append({
+                'mutation_category': mutation_category,
+                'mutation_name': mutation_name,
+                'onset_type': match.classification.value,
+                'ref_onset_time': match.ref_onset,
+                'live_onset_time': match.live_onset,
+                'ref_pitch': match.ref_pitch,
+                'live_pitch': match.live_pitch,
+                'pitch': match.ref_pitch,  # Para compatibilidad con validation
+                'adjustment_ms': match.time_adjustment,
+                'pitch_similarity': match.pitch_similarity,
+                'has_ref': True,
+                'has_live': True
+            })
+        
+        # Agregar filas para onsets perdidos (missing)
+        for onset_time, pitch in self.missing_onsets:
+            rows.append({
+                'mutation_category': mutation_category,
+                'mutation_name': mutation_name,
+                'onset_type': OnsetType.MISSING.value,
+                'ref_onset_time': onset_time,
+                'live_onset_time': None,
+                'ref_pitch': pitch,
+                'live_pitch': None,
+                'pitch': pitch,  # Para compatibilidad con validation
+                'adjustment_ms': None,
+                'pitch_similarity': 0.0,
+                'has_ref': True,
+                'has_live': False
+            })
+        
+        # Agregar filas para onsets extra
+        for onset_time, pitch in self.extra_onsets:
+            rows.append({
+                'mutation_category': mutation_category,
+                'mutation_name': mutation_name,
+                'onset_type': OnsetType.EXTRA.value,
+                'ref_onset_time': None,
+                'live_onset_time': onset_time,
+                'ref_pitch': None,
+                'live_pitch': pitch,
+                'pitch': pitch,  # Para compatibilidad con validation
+                'adjustment_ms': None,
+                'pitch_similarity': 0.0,
+                'has_ref': False,
+                'has_live': True
+            })
+        
+        return rows

@@ -9,7 +9,7 @@ from scipy.spatial.distance import cdist
 from scipy.optimize import minimize
 from .config import AudioAnalysisConfig
 from .onset_results import OnsetMatch, OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
-from .onset_utils import OnsetUtils, DTWUtils, OnsetMatchingUtils
+from .onset_utils import OnsetUtils, DTWUtils
 
 class OnsetDTWAnalyzer:
     """
@@ -23,6 +23,7 @@ class OnsetDTWAnalyzer:
         self.pitch_weight = 0.7  # Peso de la similitud de altura
         self.time_weight = 0.3   # Peso de la proximidad temporal
         self.max_pitch_diff = 2.0  # Diferencia máxima de semitonos
+        self.tolerance_ms = config.tolerance_ms  # Tolerancia en milisegundos para emparejamiento
         
     def detect_onsets_with_pitch(self, audio: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -129,7 +130,7 @@ class OnsetDTWAnalyzer:
                 extra_onsets=[(t, p) for t, p in zip(onsets_live, pitches_live)],
                 dtw_path=np.array([]),
                 alignment_cost=float('inf'),
-                tolerance_ms=100.0  # valor por defecto
+                tolerance_ms=self.tolerance_ms
             )
         
         # Crear características para DTW
@@ -137,7 +138,12 @@ class OnsetDTWAnalyzer:
         features_live = self.create_dtw_features(onsets_live, pitches_live)
         
         # Alinear con DTW
-        dtw_path, alignment_cost = self.align_with_dtw(features_ref, features_live)
+        alignment_cost, dtw_path = librosa.sequence.dtw(
+            X=features_ref.T, 
+            Y=features_live.T, 
+            metric='cosine'
+        )
+        # dtw_path, alignment_cost = self.align_with_dtw(features_ref, features_live)
         
         # Crear emparejamientos basados en el camino DTW
         matches = []
@@ -187,7 +193,7 @@ class OnsetDTWAnalyzer:
         # Clasificar los matches basándose en el ajuste temporal
         for match in matches:
             time_adj = match.time_adjustment
-            if abs(time_adj) <= 50.0:  # Tolerancia para considerar "correcto"
+            if abs(time_adj) <= 50.0:  # tolerance_ms Tolerancia para considerar "correcto"
                 correct_matches.append(match)
             elif time_adj > 0:  # Tarde
                 late_matches.append(match)
@@ -217,7 +223,7 @@ class OnsetDTWAnalyzer:
             extra_onsets=unmatched_live,
             dtw_path=dtw_path,
             alignment_cost=alignment_cost,
-            tolerance_ms=50.0  # Tolerancia utilizada
+            tolerance_ms=self.tolerance_ms # Tolerancia utilizada
         )
     
     def get_alignment_adjustments(self, result: OnsetDTWAnalysisResult) -> Dict[str, List[float]]:
@@ -275,8 +281,7 @@ class OnsetDTWAnalyzer:
             'perfect_pitch_matches': perfect_matches
         }
     
-    def analyze_onsets_with_rhythm_consistency(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
-                                             sr: int, tolerance_ms: float = 1.0) -> OnsetDTWAnalysisResult:
+    def  analyze_onsets_with_rhythm_consistency(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> OnsetDTWAnalysisResult:
         """
         Analiza onsets con DTW y clasifica errores basándose en consistencia rítmica.
         
@@ -284,7 +289,6 @@ class OnsetDTWAnalyzer:
             audio_ref: Audio de referencia
             audio_live: Audio en vivo
             sr: Sample rate
-            tolerance_ms: Tolerancia para considerar ritmo consistente
             
         Returns:
             Resultado completo del análisis DTW con clasificación de errores
@@ -298,7 +302,7 @@ class OnsetDTWAnalyzer:
                 extra_onsets=basic_result.extra_onsets,
                 dtw_path=basic_result.dtw_path,
                 alignment_cost=basic_result.alignment_cost,
-                tolerance_ms=tolerance_ms
+                tolerance_ms=self.tolerance_ms
             )
         
         # Clasificar matches según consistencia rítmica
@@ -315,13 +319,9 @@ class OnsetDTWAnalyzer:
                 correct_matches.append(match)
             else:
                 # Verificar si mantiene consistencia rítmica
-                if abs(adj - prev_adj) <= tolerance_ms:
+                if abs(adj - prev_adj) <= self.tolerance_ms:
                     correct_matches.append(match)
                 else:
-                    # Clasificar según el signo del time_adjustment
-                    # time_adjustment = (ref_onset - live_onset) * 1000
-                    # Si time_adjustment < 0: live_onset > ref_onset → TARDE
-                    # Si time_adjustment > 0: live_onset < ref_onset → ADELANTADO
                     if adj < 0:
                         late_matches.append(match)  # Tarde (live > ref)
                     else:
@@ -352,5 +352,5 @@ class OnsetDTWAnalyzer:
             extra_onsets=basic_result.extra_onsets,
             dtw_path=basic_result.dtw_path,
             alignment_cost=basic_result.alignment_cost,
-            tolerance_ms=tolerance_ms
+            tolerance_ms=self.tolerance_ms
         )

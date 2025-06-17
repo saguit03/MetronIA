@@ -140,16 +140,16 @@ class OnsetUtils:
         
         # Crear lista de datos para el CSV
         csv_data = []
-        
-        # Procesar todos los matches (correctos, tarde, adelantado)
+          # Procesar todos los matches (correctos, tarde, adelantado)
         for match in dtw_onset_result.matches:
             csv_data.append({
                 'onset_type': match.classification.value,
-                'ref_timestamp': round(match.ref_onset, 4),
-                'live_timestamp': round(match.live_onset, 4),
-                'time_difference_ms': round(match.time_adjustment, 2),
-                'ref_pitch_hz': round(match.ref_pitch, 2) if match.ref_pitch > 0 else None,
-                'live_pitch_hz': round(match.live_pitch, 2) if match.live_pitch > 0 else None,
+                'ref_onset_time': round(match.ref_onset, 4),
+                'live_onset_time': round(match.live_onset, 4),
+                'adjustment_ms': round(match.time_adjustment, 4),
+                'ref_pitch_hz': round(match.ref_pitch, 1) if match.ref_pitch > 0 else None,
+                'live_pitch_hz': round(match.live_pitch, 1) if match.live_pitch > 0 else None,
+                'pitch': round(match.ref_pitch, 1) if match.ref_pitch > 0 else round(match.live_pitch, 1),
                 'pitch_similarity': round(match.pitch_similarity, 3),
                 'is_matched': True
             })
@@ -158,11 +158,12 @@ class OnsetUtils:
         for ref_time, ref_pitch in dtw_onset_result.missing_onsets:
             csv_data.append({
                 'onset_type': 'missing',
-                'ref_timestamp': round(ref_time, 4),
-                'live_timestamp': None,
-                'time_difference_ms': None,
-                'ref_pitch_hz': round(ref_pitch, 2) if ref_pitch > 0 else None,
+                'ref_onset_time': round(ref_time, 4),
+                'live_onset_time': None,
+                'adjustment_ms': None,
+                'ref_pitch_hz': round(ref_pitch, 1) if ref_pitch > 0 else None,
                 'live_pitch_hz': None,
+                'pitch': round(ref_pitch, 1) if ref_pitch > 0 else 60,
                 'pitch_similarity': None,
                 'is_matched': False
             })
@@ -171,21 +172,21 @@ class OnsetUtils:
         for live_time, live_pitch in dtw_onset_result.extra_onsets:
             csv_data.append({
                 'onset_type': 'extra',
-                'ref_timestamp': None,
-                'live_timestamp': round(live_time, 4),
-                'time_difference_ms': None,
+                'ref_onset_time': None,
+                'live_onset_time': round(live_time, 4),
+                'adjustment_ms': None,
                 'ref_pitch_hz': None,
-                'live_pitch_hz': round(live_pitch, 2) if live_pitch > 0 else None,
+                'live_pitch_hz': round(live_pitch, 1) if live_pitch > 0 else None,
+                'pitch': round(live_pitch, 1) if live_pitch > 0 else 60,
                 'pitch_similarity': None,
                 'is_matched': False
             })
-        
-        # Crear DataFrame y ordenar por timestamp de referencia
+          # Crear DataFrame y ordenar por timestamp de referencia
         df = pd.DataFrame(csv_data)
         
         # Ordenar por timestamp de referencia (poner None al final)
         df_sorted = df.sort_values(
-            by=['ref_timestamp', 'live_timestamp'], 
+            by=['ref_onset_time', 'live_onset_time'], 
             na_position='last'
         )
         
@@ -385,102 +386,3 @@ class DTWUtils:
         ])
         
         return features
-
-
-class OnsetMatchingUtils:
-    """Utilidades para emparejamiento de onsets."""
-    
-    @staticmethod
-    def calculate_search_window(onsets_ref: np.ndarray, ref_idx: int, 
-                               base_window: float = 0.1, adaptive: bool = True) -> float:
-        """
-        Calcula la ventana de búsqueda adaptativa para un onset de referencia.
-        
-        Args:
-            onsets_ref: Array de onsets de referencia
-            ref_idx: Índice del onset actual
-            base_window: Ventana base en segundos
-            adaptive: Si usar ventana adaptativa basada en densidad local
-            
-        Returns:
-            Tamaño de ventana en segundos
-        """
-        if not adaptive or len(onsets_ref) < 3:
-            return base_window
-        
-        # Calcular densidad local de onsets
-        start_idx = max(0, ref_idx - 2)
-        end_idx = min(len(onsets_ref), ref_idx + 3)
-        local_onsets = onsets_ref[start_idx:end_idx]
-        
-        if len(local_onsets) < 2:
-            return base_window
-        
-        # Calcular intervalo promedio en la región local
-        local_intervals = np.diff(local_onsets)
-        avg_interval = np.mean(local_intervals)
-        
-        # Ventana adaptativa: 25% del intervalo promedio local, pero mínimo base_window
-        adaptive_window = max(base_window, avg_interval * 0.25)
-        
-        # Limitar la ventana máxima
-        max_window = base_window * 3
-        return min(adaptive_window, max_window)
-    
-    @staticmethod
-    def find_candidates_in_window(ref_onset: float, live_onsets: List[float], 
-                                 window_size: float) -> List[int]:
-        """
-        Encuentra candidatos de onsets en vivo dentro de una ventana temporal.
-        
-        Args:
-            ref_onset: Tiempo del onset de referencia
-            live_onsets: Lista de onsets en vivo disponibles  
-            window_size: Tamaño de la ventana en segundos
-            
-        Returns:
-            Lista de índices de candidatos válidos
-        """
-        candidates = []
-        for i, live_onset in enumerate(live_onsets):
-            if abs(live_onset - ref_onset) <= window_size:
-                candidates.append(i)
-        return candidates
-    
-    @staticmethod
-    def select_best_candidate(ref_onset: float, candidates: List[int], 
-                             live_onsets: List[float], used_indices: set,
-                             prefer_unused: bool = True) -> Optional[int]:
-        """
-        Selecciona el mejor candidato de una lista.
-        
-        Args:
-            ref_onset: Tiempo del onset de referencia
-            candidates: Lista de índices candidatos
-            live_onsets: Lista completa de onsets en vivo
-            used_indices: Conjunto de índices ya utilizados
-            prefer_unused: Si preferir candidatos no utilizados
-            
-        Returns:
-            Índice del mejor candidato o None si no hay candidatos válidos
-        """
-        if not candidates:
-            return None
-        
-        # Filtrar candidatos no utilizados si se prefiere
-        if prefer_unused:
-            unused_candidates = [c for c in candidates if c not in used_indices]
-            if unused_candidates:
-                candidates = unused_candidates
-        
-        # Seleccionar el candidato más cercano temporalmente
-        best_candidate = None
-        best_distance = float('inf')
-        
-        for candidate_idx in candidates:
-            distance = abs(live_onsets[candidate_idx] - ref_onset)
-            if distance < best_distance:
-                best_distance = distance
-                best_candidate = candidate_idx
-        
-        return best_candidate

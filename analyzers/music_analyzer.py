@@ -66,7 +66,7 @@ class MusicAnalyzer:
         
         # audio_ref_resampled para mejorar el alineamiento DTW
         dtw_onset_result = self.onset_dtw_analyzer.analyze_onsets_with_rhythm_consistency(
-            audio_ref, aligned_audio_live, sr, tolerance_ms=1.0
+            audio_ref, aligned_audio_live, sr
         )
         # Análisis de tempo usando método robusto si se proporciona tempo de referencia
         tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(
