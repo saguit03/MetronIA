@@ -30,11 +30,11 @@ class AudioVisualizer:
         ax.legend()        
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        
+
         if save_name:
             plots_dir = Path(dir_path)
             plots_dir.mkdir(parents=True, exist_ok=True)
-            fig_path = plots_dir / f"{save_name}_beat_spectrum.png"
+            fig_path = plots_dir / f"{save_name}.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
         
         if show:
@@ -81,7 +81,7 @@ class AudioVisualizer:
         if save_name:
             plots_dir = Path(dir_path)
             plots_dir.mkdir(parents=True, exist_ok=True)
-            fig_path = plots_dir / f"{save_name}_timeline.png"
+            fig_path = plots_dir / f"{save_name}.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
             
         if show:

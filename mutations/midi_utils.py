@@ -10,10 +10,10 @@ from mutations.config import MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
 from mutations.results import MutationResult
 from utils.audio_utils import save_audio
 
-def save_excerpt_in_audio(excerpt, save_name, soundfont_path=None, sample_rate=16000):
+def save_excerpt_in_audio(excerpt, save_name, save_dir = MUTATIONS_AUDIO_PATH, soundfont_path=None, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-    output_filename = save_audio(audio_normalized, save_name, MUTATIONS_AUDIO_PATH, sample_rate)
+    output_filename = save_audio(audio_normalized, save_name, save_dir, sample_rate)
     return output_filename
 
 def load_midi_with_mido(midi_file_path, bpm=120):

@@ -8,8 +8,8 @@ from typing import Tuple, Optional, List, Dict
 from scipy.spatial.distance import cdist
 from scipy.optimize import minimize
 from .config import AudioAnalysisConfig
-from .onset_results import OnsetMatch, OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
-from .onset_utils import OnsetUtils, DTWUtils
+from .onset_results import OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
+from .onset_utils import OnsetUtils
 
 class OnsetDTWAnalyzer:
     """
@@ -24,158 +24,113 @@ class OnsetDTWAnalyzer:
         self.time_weight = 0.3   # Peso de la proximidad temporal
         self.max_pitch_diff = 2.0  # Diferencia máxima de semitonos
         self.tolerance_ms = config.tolerance_ms  # Tolerancia en milisegundos para emparejamiento
-        
-    def detect_onsets_with_pitch(self, audio: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Detecta onsets y extrae la altura en cada onset.
-        Delegado a OnsetUtils para funcionalidad común.
-        """
-        return OnsetUtils.detect_onsets_with_pitch(audio, sr)
-    
-    def calculate_pitch_similarity(self, pitch1_hz: float, pitch2_hz: float) -> float:
-        """
-        Calcula similitud de altura entre dos pitches.
-        Delegado a OnsetUtils para funcionalidad común.
-        """
-        return OnsetUtils.calculate_pitch_similarity(pitch1_hz, pitch2_hz, self.max_pitch_diff)
-    
-    def create_dtw_features(self, onsets: np.ndarray, pitches: np.ndarray) -> np.ndarray:
-        """
-        Crea características para DTW combinando tiempo y pitch.
-        Delegado a DTWUtils para funcionalidad común.
-        """
-        return DTWUtils.create_dtw_features(onsets, pitches, self.pitch_weight, self.time_weight)
-    
-    def dtw_distance(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, float]:
-        """
-        Implementación básica de DTW.
-        
-        Args:
-            x: Primera secuencia de características
-            y: Segunda secuencia de características
             
-        Returns:
-            Tuple con (path, cost)
-        """
-        n, m = len(x), len(y)
-        
-        # Crear matriz de distancias
-        distance_matrix = cdist(x, y, metric='euclidean')
-        
-        # Matriz de costos acumulados
-        dtw_matrix = np.full((n + 1, m + 1), np.inf)
-        dtw_matrix[0, 0] = 0
-        
-        # Llenar la matriz DTW
-        for i in range(1, n + 1):
-            for j in range(1, m + 1):
-                cost = distance_matrix[i-1, j-1]
-                dtw_matrix[i, j] = cost + min(
-                    dtw_matrix[i-1, j],      # inserción
-                    dtw_matrix[i, j-1],      # eliminación
-                    dtw_matrix[i-1, j-1]     # match
-                )
-        
-        # Reconstruir el camino óptimo
-        path = []
-        i, j = n, m
-        while i > 0 and j > 0:
-            path.append((i-1, j-1))
-            
-            # Elegir el movimiento que dio el menor costo
-            moves = [
-                (dtw_matrix[i-1, j-1], i-1, j-1),  # diagonal
-                (dtw_matrix[i-1, j], i-1, j),      # arriba
-                (dtw_matrix[i, j-1], i, j-1)       # izquierda
-            ]
-            _, i, j = min(moves)
-        
-        path.reverse()
-        return np.array(path), dtw_matrix[n, m]
-    
-    def align_with_dtw(self, features_ref: np.ndarray, features_live: np.ndarray) -> Tuple[np.ndarray, float]:
-        """
-        Alinea las características usando DTW.
-        
-        Args:
-            features_ref: Características del audio de referencia
-            features_live: Características del audio en vivo
-            
-        Returns:
-            Tuple con (path, cost) donde:
-            - path: Camino DTW como array de pares [ref_idx, live_idx]
-            - cost: Costo del alineamiento
-        """
-        return self.dtw_distance(features_ref, features_live)
-    
-    def match_onsets_with_dtw(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
-                             sr: int) -> OnsetDTWAnalysisResult:
-        """
-        Empareja onsets usando DTW y similitud de altura.
-        
-        Args:
-            audio_ref: Audio de referencia
-            audio_live: Audio en vivo
-            sr: Sample rate
-            
-        Returns:
-            Resultado del análisis con emparejamientos y ajustes temporales
-        """        # Detectar onsets y pitches
-        onsets_ref, pitches_ref = self.detect_onsets_with_pitch(audio_ref, sr)
-        onsets_live, pitches_live = self.detect_onsets_with_pitch(audio_live, sr)        
-        if len(onsets_ref) == 0 or len(onsets_live) == 0:
-            return OnsetDTWAnalysisResult(
-                matches=[],  # Lista vacía de matches clasificados
-                missing_onsets=[(t, p) for t, p in zip(onsets_ref, pitches_ref)],
-                extra_onsets=[(t, p) for t, p in zip(onsets_live, pitches_live)],
-                dtw_path=np.array([]),
-                alignment_cost=float('inf'),
-                tolerance_ms=self.tolerance_ms
-            )
-        
-        # Crear características para DTW
-        features_ref = self.create_dtw_features(onsets_ref, pitches_ref)
-        features_live = self.create_dtw_features(onsets_live, pitches_live)
-        
-        # Alinear con DTW
-        alignment_cost, dtw_path = librosa.sequence.dtw(
-            X=features_ref.T, 
-            Y=features_live.T, 
-            metric='cosine'
+    def invalid_onsets(self, onsets_ref, pitches_ref, onsets_live, pitches_live):
+        return OnsetDTWAnalysisResult(
+            matches=[],
+            missing_onsets=[(t, p) for t, p in zip(onsets_ref, pitches_ref)],
+            extra_onsets=[(t, p) for t, p in zip(onsets_live, pitches_live)],
+            dtw_path=np.array([]),
+            alignment_cost=float('inf'),
+            tolerance_ms=self.tolerance_ms
         )
-        # dtw_path, alignment_cost = self.align_with_dtw(features_ref, features_live)
+    
+    def validate_onsets(self, onsets_ref: np.ndarray, pitches_ref: np.ndarray,
+                        onsets_live: np.ndarray, pitches_live: np.ndarray):
         
-        # Crear emparejamientos basados en el camino DTW
-        matches = []
-        used_live_indices = set()
+        # Verificaciones de validez más exhaustivas
+        if len(onsets_ref) == 0 or len(onsets_live) == 0:
+            return self.invalid_onsets(onsets_ref, pitches_ref, onsets_live, pitches_live)
+        
+        # Verificar que no haya valores NaN o infinitos en los onsets y pitches
+        if (np.any(np.isnan(onsets_ref)) or np.any(np.isinf(onsets_ref)) or
+            np.any(np.isnan(onsets_live)) or np.any(np.isinf(onsets_live)) or
+            np.any(np.isnan(pitches_ref)) or np.any(np.isinf(pitches_ref)) or
+            np.any(np.isnan(pitches_live)) or np.any(np.isinf(pitches_live))):
+            
+            print("⚠️ Valores NaN o infinitos detectados en onsets o pitches")
+            print(f"   Onsets ref: NaN={np.any(np.isnan(onsets_ref))}, Inf={np.any(np.isinf(onsets_ref))}")
+            print(f"   Onsets live: NaN={np.any(np.isnan(onsets_live))}, Inf={np.any(np.isinf(onsets_live))}")
+            print(f"   Pitches ref: NaN={np.any(np.isnan(pitches_ref))}, Inf={np.any(np.isinf(pitches_ref))}")
+            print(f"   Pitches live: NaN={np.any(np.isnan(pitches_live))}, Inf={np.any(np.isinf(pitches_live))}")
+            
+            # Filtrar valores válidos
+            valid_ref_mask = ~(np.isnan(onsets_ref) | np.isinf(onsets_ref) | 
+                              np.isnan(pitches_ref) | np.isinf(pitches_ref))
+            valid_live_mask = ~(np.isnan(onsets_live) | np.isinf(onsets_live) | 
+                               np.isnan(pitches_live) | np.isinf(pitches_live))
+            
+            onsets_ref = onsets_ref[valid_ref_mask]
+            pitches_ref = pitches_ref[valid_ref_mask]
+            onsets_live = onsets_live[valid_live_mask]
+            pitches_live = pitches_live[valid_live_mask]
+            
+            print(f"   Después del filtrado: {len(onsets_ref)} onsets ref, {len(onsets_live)} onsets live")
+            
+            # Verificar nuevamente si quedan onsets válidos
+        if len(onsets_ref) == 0 or len(onsets_live) == 0:
+            return self.invalid_onsets(onsets_ref, pitches_ref, onsets_live, pitches_live)
+    
+    def dtw_valid_path(self, dtw_path: np.ndarray, onsets_ref: np.ndarray, onsets_live: np.ndarray, verbose: Optional[bool] = False) -> List[Tuple[int, int]]:
+        max_ref_idx = len(onsets_ref) - 1
+        max_live_idx = len(onsets_live) - 1
+        
+        valid_dtw_path = []
+        invalid_indices_count = 0
         
         for ref_idx, live_idx in dtw_path:
+            if ref_idx <= max_ref_idx and live_idx <= max_live_idx:
+                valid_dtw_path.append((ref_idx, live_idx))
+            else:
+                invalid_indices_count += 1
+        if verbose and invalid_indices_count > 0:
+            print(f"⚠️ DTW path contenía {invalid_indices_count} índices inválidos")
+            print(f"   Rango válido ref: 0-{max_ref_idx}, live: 0-{max_live_idx}")
+            print(f"   Usando {len(valid_dtw_path)} emparejamientos válidos")
+
+        return valid_dtw_path
+    
+    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray, onsets_live: np.ndarray, pitches_live: np.ndarray, verbose: Optional[bool] = False) -> List[OnsetMatchClassified]:
+        valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
+        matches = []
+        used_live_indices = set()
+        prev_adj = None
+        valid_dtw_path = valid_dtw_path[::-1]
+       
+        for ref_idx, live_idx in valid_dtw_path:
             if live_idx not in used_live_indices:
                 ref_onset = onsets_ref[ref_idx]
                 live_onset = onsets_live[live_idx]
                 ref_pitch = pitches_ref[ref_idx]
                 live_pitch = pitches_live[live_idx]
+                time_adjustment = (ref_onset - live_onset)
+                diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
+                pitch_similarity = OnsetUtils.calculate_pitch_similarity(ref_pitch, live_pitch)
+                if abs(diff_adj) < self.tolerance_ms:
+                    classification = OnsetType.CORRECT
+                elif diff_adj < 0:
+                    classification = OnsetType.LATE
+                else:
+                    classification = OnsetType.EARLY
+                if verbose:
+                    print(f"Referencia ({ref_onset:.2f}) - Vivo ({live_onset:.2f}) \n Ajuste: {time_adjustment:.2f} ms")
+                    print(f"Diferencia ajustada: {diff_adj:.2f} ms")
+                    print(f"Clasificación: {classification.value}")
                 
-                # Calcular ajuste temporal necesario
-                time_adjustment = (ref_onset - live_onset) * 1000  # en ms
-                
-                # Calcular similitud de altura
-                pitch_similarity = self.calculate_pitch_similarity(ref_pitch, live_pitch)
-                
-                match = OnsetMatch(
+                match = OnsetMatchClassified(
                     ref_onset=ref_onset,
                     live_onset=live_onset,
                     ref_pitch=ref_pitch,
                     live_pitch=live_pitch,
                     time_adjustment=time_adjustment,
-                    pitch_similarity=pitch_similarity
+                    pitch_similarity=pitch_similarity,
+                    classification=classification
                 )
-                
                 matches.append(match)
                 used_live_indices.add(live_idx)
-        
-        # Identificar onsets no emparejados
-        matched_ref_indices = {ref_idx for ref_idx, _ in dtw_path}
+                prev_adj = time_adjustment
+                
+        matched_ref_indices = {ref_idx for ref_idx, _ in valid_dtw_path}
         matched_live_indices = used_live_indices
         
         unmatched_ref = [(onsets_ref[i], pitches_ref[i]) 
@@ -185,45 +140,35 @@ class OnsetDTWAnalyzer:
         unmatched_live = [(onsets_live[i], pitches_live[i]) 
                          for i in range(len(onsets_live)) 
                          if i not in matched_live_indices]
-          # Convertir matches a la nueva estructura clasificada
-        correct_matches = []
-        late_matches = []
-        early_matches = []
+        return matches, unmatched_ref, unmatched_live
+
+
+    def match_onsets_with_dtw(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
+                             sr: int, dtw_path, alignment_cost) -> OnsetDTWAnalysisResult:
+        """
+        Empareja onsets usando DTW y similitud de altura.
         
-        # Clasificar los matches basándose en el ajuste temporal
-        for match in matches:
-            time_adj = match.time_adjustment
-            if abs(time_adj) <= 50.0:  # tolerance_ms Tolerancia para considerar "correcto"
-                correct_matches.append(match)
-            elif time_adj > 0:  # Tarde
-                late_matches.append(match)
-            else:  # Temprano
-                early_matches.append(match)
-          # Crear lista unificada de matches clasificados
-        classified_matches = []
-        for match in correct_matches:
-            classified_matches.append(OnsetMatchClassified(
-                match.ref_onset, match.live_onset, match.ref_pitch, match.live_pitch,
-                match.time_adjustment, match.pitch_similarity, OnsetType.CORRECT
-            ))
-        for match in late_matches:
-            classified_matches.append(OnsetMatchClassified(
-                match.ref_onset, match.live_onset, match.ref_pitch, match.live_pitch,
-                match.time_adjustment, match.pitch_similarity, OnsetType.LATE
-            ))
-        for match in early_matches:
-            classified_matches.append(OnsetMatchClassified(
-                match.ref_onset, match.live_onset, match.ref_pitch, match.live_pitch,
-                match.time_adjustment, match.pitch_similarity, OnsetType.EARLY
-            ))
+        Args:
+            audio_ref: Audio de referencia
+            audio_live: Audio en vivo
+            sr: Sample rate
+            
+        Returns:
+            Resultado del análisis con emparejamientos y ajustes temporales        
+"""        
+        # Detectar onsets y pitches
+        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(audio_ref, sr)
+        onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(audio_live, sr)
         
+        matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref, pitches_ref=pitches_ref, onsets_live=onsets_live, pitches_live=pitches_live)
+
         return OnsetDTWAnalysisResult(
-            matches=classified_matches,
+            matches=matches,
             missing_onsets=unmatched_ref,
             extra_onsets=unmatched_live,
             dtw_path=dtw_path,
             alignment_cost=alignment_cost,
-            tolerance_ms=self.tolerance_ms # Tolerancia utilizada
+            tolerance_ms=self.tolerance_ms
         )
     
     def get_alignment_adjustments(self, result: OnsetDTWAnalysisResult) -> Dict[str, List[float]]:
@@ -281,76 +226,3 @@ class OnsetDTWAnalyzer:
             'perfect_pitch_matches': perfect_matches
         }
     
-    def  analyze_onsets_with_rhythm_consistency(self, audio_ref: np.ndarray, audio_live: np.ndarray, sr: int) -> OnsetDTWAnalysisResult:
-        """
-        Analiza onsets con DTW y clasifica errores basándose en consistencia rítmica.
-        
-        Args:
-            audio_ref: Audio de referencia
-            audio_live: Audio en vivo
-            sr: Sample rate
-            
-        Returns:
-            Resultado completo del análisis DTW con clasificación de errores
-        """
-        # Primero hacer el análisis DTW básico
-        basic_result = self.match_onsets_with_dtw(audio_ref, audio_live, sr)        
-        if not basic_result.matches:
-            return OnsetDTWAnalysisResult(
-                matches=[],  # Lista vacía de matches clasificados
-                missing_onsets=basic_result.missing_onsets,
-                extra_onsets=basic_result.extra_onsets,
-                dtw_path=basic_result.dtw_path,
-                alignment_cost=basic_result.alignment_cost,
-                tolerance_ms=self.tolerance_ms
-            )
-        
-        # Clasificar matches según consistencia rítmica
-        correct_matches = []
-        late_matches = []
-        early_matches = []
-        prev_adj = None
-        
-        for match in basic_result.matches:
-            adj = match.time_adjustment
-            
-            if prev_adj is None:
-                # Primer match siempre se considera correcto como referencia
-                correct_matches.append(match)
-            else:
-                # Verificar si mantiene consistencia rítmica
-                if abs(adj - prev_adj) <= self.tolerance_ms:
-                    correct_matches.append(match)
-                else:
-                    if adj < 0:
-                        late_matches.append(match)  # Tarde (live > ref)
-                    else:
-                        early_matches.append(match)  # Adelantado (live < ref)
-            
-            prev_adj = adj
-          # Crear lista unificada de matches clasificados
-        classified_matches = []
-        for match in correct_matches:
-            classified_matches.append(OnsetMatchClassified(
-                match.ref_onset, match.live_onset, match.ref_pitch, match.live_pitch,
-                match.time_adjustment, match.pitch_similarity, OnsetType.CORRECT
-            ))
-        for match in late_matches:
-            classified_matches.append(OnsetMatchClassified(
-                match.ref_onset, match.live_onset, match.ref_pitch, match.live_pitch,
-                match.time_adjustment, match.pitch_similarity, OnsetType.LATE
-            ))
-        for match in early_matches:
-            classified_matches.append(OnsetMatchClassified(
-                match.ref_onset, match.live_onset, match.ref_pitch, match.live_pitch,
-                match.time_adjustment, match.pitch_similarity, OnsetType.EARLY
-            ))
-        
-        return OnsetDTWAnalysisResult(
-            matches=classified_matches,
-            missing_onsets=basic_result.missing_onsets,
-            extra_onsets=basic_result.extra_onsets,
-            dtw_path=basic_result.dtw_path,
-            alignment_cost=basic_result.alignment_cost,
-            tolerance_ms=self.tolerance_ms
-        )

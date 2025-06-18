@@ -23,19 +23,15 @@ class AudioFeatureExtractor:
             n_mfcc=self.config.n_mfcc
         )
         return librosa.util.normalize(mfcc, axis=1).T  # (frames, features)
-    
-    def compute_self_similarity_matrix(self, features: np.ndarray) -> np.ndarray:
-        """Calcula la matriz de auto-semejanza."""
+
+    def compute_self_similarity_matrix(self, features):
         D = cdist(features, features, metric='cosine')
-        return 1 - D
-    
-    def compute_beat_spectrum(self, similarity_matrix: np.ndarray) -> np.ndarray:
-        """Calcula el beat spectrum de una matriz de semejanza."""
+        S = 1 - D
+        return S
+
+    def compute_beat_spectrum(self, similarity_matrix):
         n = similarity_matrix.shape[0]
-        return np.array([
-            np.mean(np.diag(similarity_matrix, k=lag)) 
-            for lag in range(1, n)
-        ])
+        return np.array([np.mean(np.diag(similarity_matrix, k=lag)) for lag in range(1, n)])
 
     def extract_chroma_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
         """Extrae características cromáticas del audio."""

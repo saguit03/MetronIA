@@ -23,10 +23,8 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
-
-# Imports del proyecto
 from analyzers import MusicAnalyzer
-
+from utils.audio_utils import check_extension
 
 def validate_arguments() -> tuple[str, str, Optional[str]]:
     """
@@ -46,7 +44,6 @@ def validate_arguments() -> tuple[str, str, Optional[str]]:
     
     ruta_referencia = sys.argv[1]
     ruta_en_vivo = sys.argv[2]
-    nombre_analisis = sys.argv[3] if len(sys.argv) == 4 else None
     
     # Validar que los archivos existen
     if not os.path.exists(ruta_referencia):
@@ -57,6 +54,7 @@ def validate_arguments() -> tuple[str, str, Optional[str]]:
         print(f"❌ Error: El archivo en vivo '{ruta_en_vivo}' no existe")
         sys.exit(1)
     
+    nombre_analisis = sys.argv[3] if len(sys.argv) == 4 else Path(ruta_referencia).stem.split('_')[0]
     # Validar nombre del análisis si se proporciona
     if nombre_analisis and not nombre_analisis.replace('_', '').replace('-', '').isalnum():
         print(f"❌ Error: El nombre del análisis '{nombre_analisis}' contiene caracteres no válidos")
@@ -98,46 +96,6 @@ def create_results_directory() -> Path:
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
     return results_dir
-
-
-def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Dict[str, Any]:
-    """
-    Realiza el análisis completo entre los dos archivos de audio.
-    
-    Args:
-        ref_path: Ruta al archivo de referencia
-        live_path: Ruta al archivo en vivo
-        analysis_name: Nombre del análisis
-        
-    Returns:
-        Diccionario con todos los resultados del análisis
-    """
-    print(f"🔬 Iniciando análisis de interpretación musical...")
-    print(f"   📄 Referencia: {ref_path}")
-    print(f"   🎤 En vivo: {live_path}")
-    print(f"   🏷️ Nombre del análisis: {analysis_name}")
-    
-    try:
-        # Crear analizador
-        analyzer = MusicAnalyzer()
-        
-        # Realizar análisis completo
-        analysis_result = analyzer.comprehensive_analysis(
-            reference_path=ref_path,
-            live_path=live_path,
-            save_name=analysis_name,
-            save_dir=analysis_name
-        )
-        
-        print(f"✅ Análisis completado exitosamente")
-        return analysis_result
-        
-    except Exception as e:
-        print(f"❌ Error durante el análisis: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
 
 def print_analysis_summary(analysis_result: Dict[str, Any], analysis_name: str):
     """
@@ -245,14 +203,11 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
     Args:
         ref_path: Ruta al archivo de referencia
         live_path: Ruta al archivo en vivo
-        analysis_name: Nombre del análisis para las gráficas
+        analysis_name: Nombre del análisis
         
     Returns:
         Diccionario con todos los resultados del análisis
     """
-    print(f"🔬 Iniciando análisis de interpretación musical...")
-    print(f"   📄 Referencia: {ref_path}")
-    print(f"   🎤 En vivo: {live_path}")
     
     try:
         # Crear analizador
@@ -263,6 +218,7 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
             reference_path=ref_path,
             live_path=live_path,
             save_name=analysis_name,
+            save_dir=analysis_name
         )
         
         print(f"✅ Análisis completado exitosamente")
@@ -273,7 +229,6 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
         import traceback
         traceback.print_exc()
         sys.exit(1)
-
 
 def move_plots_to_analysis_directory(analysis_name: str, analysis_dir: Path):
     """
@@ -311,14 +266,15 @@ def move_plots_to_analysis_directory(analysis_name: str, analysis_dir: Path):
 def main():
     """Función principal del analizador."""
     
-    print("=" * 70)
+    print("=" * 90)
     print("🎵 ANALIZADOR METRONIA - ANÁLISIS DE INTERPRETACIÓN MUSICAL")
-    print("=" * 70)
+    print("=" * 90)
     
-    print(f"\n🔍 Validando argumentos...")
     ref_path, live_path, analysis_name = validate_arguments()
-    print(f"✅ Argumentos validados correctamente")
     
+    # ref_path = check_extension(ref_path, analysis_name+ "_ref")
+    # live_path = check_extension(live_path, analysis_name + "_live")
+
     analysis_result = analyze_audio_files(ref_path, live_path, analysis_name)
     
 if __name__ == "__main__":

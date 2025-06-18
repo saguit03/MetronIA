@@ -22,7 +22,17 @@ from tqdm import tqdm
 from mutations.manager import MutationManager
 from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, save_mutation_complete, extract_tempo_from_midi
 from analyzers import MusicAnalyzer
+from analyzers.config import AudioAnalysisConfig
 from analyzers.validation_analyzer import MutationValidationAnalyzer
+from utils.audio_utils import obtener_audio_de_midi
+
+MUTTS_ANALYSIS_CONFIG = AudioAnalysisConfig(            
+        hop_length=1024,
+        onset_margin=0.005,
+        tempo_threshold=5.0,
+        dtw_tolerance=0.03,
+        tolerance_ms=0.01
+    )
 
 EPILOG = """Ejemplos de uso:
   # Aplicar todas las mutaciones (comportamiento por defecto)
@@ -37,8 +47,11 @@ EPILOG = """Ejemplos de uso:
   # Usar un archivo MIDI específico
   python mutar_y_analizar.py --midi path/to/your/file.mid
 
+  # Usar configuración de análisis estricta
+  python mutar_y_analizar.py --analysis-mode strict
+
   # Combinación de opciones
-  python mutar_y_analizar.py --midi midi/Acordai-100.mid --categories timing_errors pitch_errors
+  python mutar_y_analizar.py --midi midi/Acordai-100.mid --categories timing_errors pitch_errors --analysis-mode relaxed
 
 Categorías disponibles:
   - pitch_errors: Errores de altura de las notas
@@ -47,6 +60,12 @@ Categorías disponibles:
   - duration_errors: Errores de duración de las notas
   - note_errors: Errores de presencia de notas
   - articulation_errors: Errores de articulación
+
+Modos de análisis disponibles:
+  - default: Configuración estándar del sistema
+  - strict: Alta precisión, tolerancias estrictas (50ms onsets)
+  - relaxed: Tolerancias permisivas para análisis general (200ms onsets)
+  - mutations: Optimizado para mutaciones (100ms onsets) [por defecto]
         """
 
 def metronia_arg_parser():
@@ -59,8 +78,8 @@ def metronia_arg_parser():
     parser.add_argument(
         '--midi',
         type=str,
-        default="midi/Acordai-100.mid",
-        help='Ruta al archivo MIDI de referencia (default: midi/Acordai-100.mid)'
+        default="midi/Acordai-110.mid",
+        help='Ruta al archivo MIDI de referencia (default: midi/Acordai-110.mid)'
     )
     
     parser.add_argument(
@@ -80,6 +99,15 @@ def metronia_arg_parser():
         '--list-categories',
         action='store_true',
         help='Mostrar todas las categorías disponibles y salir'
+    )
+    
+    parser.add_argument(
+        '--analysis-mode',
+        type=str,
+        choices=['default', 'strict', 'relaxed', 'mutations'],
+        default='mutations',
+        help='Modo de análisis: default (configuración estándar), strict (alta precisión), '
+             'relaxed (tolerante), mutations (optimizado para mutaciones) (default: mutations)'
     )
     return parser.parse_args()
 
@@ -103,34 +131,6 @@ def save_analysis_results_to_csv(analysis_data: List[Dict[str, Any]], output_fil
     print(f"✅ Resultados guardados en CSV: {output_file}")
     
     return df
-
-def obtener_audio_referencia(midi_file_path: str, midi_name):
-    try:
-        original_excerpt = load_midi_with_pretty_midi(midi_file_path)
-        print("✅ Archivo MIDI cargado exitosamente con pretty_midi")
-    except Exception as e:
-        print(f"⚠️ Error con pretty_midi: {e}")
-        try:
-            original_excerpt = load_midi_with_mido(midi_file_path)
-            print("✅ Archivo MIDI cargado exitosamente con mido")
-        except Exception as e2:
-            print(f"❌ Error cargando MIDI: {e2}")
-            return None
-
-    base_tempo = extract_tempo_from_midi(midi_file_path)
-    print(f"✅ Tempo detectado: {base_tempo} BPM")
-
-    try:
-        reference_audio_path = save_excerpt_in_audio(
-            excerpt=original_excerpt,
-            save_name=f"{midi_name}_reference"
-        )
-        print(f"✅ Audio de referencia guardado: {reference_audio_path}")
-    except Exception as e:
-        print(f"❌ Error generando audio de referencia: {e}")
-        return None
-    
-    return original_excerpt, base_tempo, reference_audio_path
 
 def filtrar_mutaciones(categories_filter):
     mutation_manager = MutationManager()
@@ -218,14 +218,14 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
     Analiza cada mutación contra el audio de referencia.
     
     Args:
-        successful_mutations: Lista de mutaciones exitosas
+        successful_mutations: Lista de mutaciones exitosas        
         reference_audio_path: Ruta del audio de referencia
         base_tempo: Tempo base del MIDI
         midi_name: Nombre base del archivo MIDI  
         results_dir: Directorio de resultados base
     """
     csv_data = []
-    analyzer = MusicAnalyzer()    # Directorio base de mutaciones
+    analyzer = MusicAnalyzer(config=MUTTS_ANALYSIS_CONFIG)    # Usar configuración personalizada
     mutations_base_dir = results_dir / f"{midi_name}_Mutaciones"
     
     for category_name, mutation_name, mutation, audio_path, original_excerpt in tqdm(successful_mutations, 
@@ -244,8 +244,8 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
                 save_name=analysis_name,  # Nombre único para cada análisis
                 save_dir=str(analysis_dir),  # Directorio específico donde guardar
                 reference_tempo=base_tempo,
-                verbose=False
-            )            # Generar archivos de cambios de mutación en el directorio de análisis individual
+            )           
+            
             if mutation.success and mutation.excerpt is not None:
                 # Analizar cambios usando el método privado de la mutación
                 changes = mutation._analyze_changes(original_excerpt, mutation.excerpt)
@@ -382,8 +382,7 @@ DISTRIBUCIÓN POR CATEGORÍAS:
     
     print(f"✅ Reporte de resumen guardado: {report_path}")
 
-def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "results", 
-                           categories_filter: Optional[List[str]] = None):
+def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "results", categories_filter: Optional[List[str]] = None):
     """
     Pipeline completo para generar mutaciones y analizar interpretaciones.
     
@@ -392,20 +391,20 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
         output_base_dir: Directorio base para guardar resultados
         categories_filter: Lista de categorías específicas a aplicar. Si es None, aplica todas.
     """
-    print("=" * 60)
+        
+    print("=" * 100)
     print("🎵 Mutaciones de MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios")
-    print("=" * 60)
-    
-    # Configuración
+    print("=" * 100)
+      # Configuración
     midi_path = Path(midi_file_path)
     midi_name = midi_path.stem
     results_dir = Path(output_base_dir)
     results_dir.mkdir(exist_ok=True)
     
-    original_excerpt, base_tempo, reference_audio_path = obtener_audio_referencia(midi_file_path, midi_name)
+    original_excerpt, base_tempo, reference_audio_path = obtener_audio_de_midi(midi_file_path, midi_name+"_reference")
     
     mutation_manager = filtrar_mutaciones(categories_filter)
-
+    
     successful_mutations = aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name, results_dir)
     
     analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, midi_name, results_dir)
@@ -475,8 +474,7 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> None:
     print(f"   - Reporte detallado: {validation_report_path}")
     print(f"   - Resultados CSV: {validation_csv_path}")
     
-    # Mostrar rendimiento por categoría
-    print(f"\n📈 RENDIMIENTO POR CATEGORÍA:")
+    # Mostrar rendimiento por categoría    print(f"\n📈 RENDIMIENTO POR CATEGORÍA:")
     for category, metrics in validation_result.category_performance.items():
         print(f"   {category}: F1={metrics['f1_score']:.3f}, "
               f"Precisión={metrics['precision']:.3f}, "
@@ -490,7 +488,6 @@ def main():
     if args.list_categories:
         listar_categorias()
         return
-    
     # Configurar archivo MIDI
     MIDI_FILE_PATH = args.midi
     
@@ -508,10 +505,9 @@ def main():
         print(f"  🎯 Categorías filtradas: {', '.join(args.categories)}")
     else:
         print(f"  🎯 Categorías: Todas (sin filtro)")
-    
-    # Ejecutar pipeline
+      # Ejecutar pipeline
     try:
-        csv_file = create_mutation_pipeline(
+        create_mutation_pipeline(
             midi_file_path=MIDI_FILE_PATH,
             output_base_dir=args.output,
             categories_filter=args.categories
