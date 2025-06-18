@@ -1,0 +1,64 @@
+
+REPORTE DE VALIDACIÓN DEL ANALIZADOR
+==================================================
+MIDI de Referencia: Acordai-110
+Fecha de Validación: 2025-06-19 01:31:07
+Total de Mutaciones Analizadas: 2
+
+MÉTRICAS GLOBALES:
+==============================
+Precisión (Precision): 1.000
+Recall (Sensibilidad): 0.857
+F1-Score: 0.923
+Exactitud (Accuracy): 0.857
+
+MATRIZ DE CONFUSIÓN:
+==============================
+                    Predicción
+                No Error    Error
+Verdad No Error         0          0
+       Error            2         12
+
+Verdaderos Positivos (TP): 12
+Falsos Positivos (FP): 0
+Verdaderos Negativos (TN): 0
+Falsos Negativos (FN): 2
+
+RENDIMIENTO POR CATEGORÍA:
+==============================
+
+TIMING_ERRORS:
+  - Mutaciones: 2
+  - Precisión: 1.000
+  - Recall: 0.857  
+  - F1-Score: 0.923
+  - Exactitud: 0.857
+
+
+RESULTADOS INDIVIDUALES:
+==============================
+
+1. timing_errors.note_too_late:
+   - TP: 5, FP: 0
+   - TN: 0, FN: 1
+   - Precisión: 1.000, Recall: 0.833
+   - F1: 0.909, Exactitud: 0.833
+   - Cambios esperados: 1, Detectados: 5
+
+2. timing_errors.note_too_soon:
+   - TP: 7, FP: 0
+   - TN: 0, FN: 1
+   - Precisión: 1.000, Recall: 0.875
+   - F1: 0.933, Exactitud: 0.875
+   - Cambios esperados: 1, Detectados: 7
+
+
+INTERPRETACIÓN:
+==============================
+- Precisión alta indica pocos falsos positivos (el analizador no detecta errores donde no los hay)
+- Recall alto indica pocos falsos negativos (el analizador detecta la mayoría de errores reales)
+- F1-Score combina precisión y recall en una sola métrica
+- Exactitud muestra el porcentaje total de clasificaciones correctas
+
+RECOMENDACIONES:
+- ✅ Excelente rendimiento general del analizador

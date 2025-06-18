@@ -1,0 +1,13 @@
+
+REPORTE DE MUTACIONES - METRONIA
+==================================================
+Archivo de referencia: Greensleeves_verso
+Fecha de análisis: 2025-06-19 01:16:45
+
+RESUMEN GENERAL:
+- Total de mutaciones aplicadas: 2
+- Análisis exitosos: 2
+- Análisis fallidos: 0
+
+DISTRIBUCIÓN POR CATEGORÍAS:
+- timing_errors: 2 mutaciones (2 exitosas)
