@@ -9,6 +9,9 @@ test_*.py
 .idea
 musescore/
 .mscbackup/
+*.mscz
+*.mscz.autosave
+*.mscbackup
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -115,3 +118,4 @@ venv.bak/
 # mypy
 .mypy_cache/
 test_directory_structure.py
+/aligned
