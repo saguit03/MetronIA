@@ -56,19 +56,32 @@ class MutationManager:
             name="tempo_errors", 
             description="Errores relacionados con el tempo"
         )
+
         tempo_mutations = [
             ("faster_tempo", "Tempo más rápido", faster_tempo_mutation),
             ("a_lot_faster_tempo", "Tempo mucho más rápido", a_lot_faster_tempo_mutation),
             ("slower_tempo", "Tempo más lento", slower_tempo_mutation),
-            ("a_lot_slower_tempo", "Tempo mucho más lento", a_lot_slower_tempo_mutation),
-            ("accelerando", "Accelerando - incremento gradual del tempo", accelerando_tempo_mutation),
-            ("ritardando", "Ritardando - disminución gradual del tempo", ritardando_tempo_mutation),
-            ("tempo_fluctuation", "Fluctuaciones aleatorias del tempo", tempo_fluctuation_mutation),
+            ("a_lot_slower_tempo", "Tempo mucho más lento", a_lot_slower_tempo_mutation)
         ]
         for name, desc, func in tempo_mutations:
             tempo_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["tempo_errors"] = tempo_category
-        
+
+        progressive_tempo_category = MutationCategory(
+            name="progressive_tempo_errors",
+            description="Errores de tempo progresivo"
+        )
+
+        # Mutaciones de tempo progresivo
+        progressive_tempo_mutations = [
+            ("accelerando", "Accelerando - incremento gradual del tempo", accelerando_tempo_mutation),
+            ("ritardando", "Ritardando - disminución gradual del tempo", ritardando_tempo_mutation),
+            ("tempo_fluctuation", "Fluctuaciones aleatorias del tempo", tempo_fluctuation_mutation)
+        ]
+        for name, desc, func in progressive_tempo_mutations:
+            progressive_tempo_category.add_mutation(MutationResult(name=name, description=desc, function=func))
+        self.categories["progressive_tempo_errors"] = progressive_tempo_category
+
         # Errores de timing
         timing_category = MutationCategory(
             name="timing_errors",
@@ -121,22 +134,7 @@ class MutationManager:
         for name, desc, func in articulation_mutations:
             articulation_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["articulation_errors"] = articulation_category
-    def apply_all_mutations(self, original_excerpt: pd.DataFrame, tempo: int = 120) -> Dict[str, Dict[str, bool]]:
-        """
-        Aplica todas las mutaciones a un excerpt original.
-        
-        Args:
-            original_excerpt: DataFrame con el excerpt musical original
-            tempo: Tempo en BPM del MIDI original
-        
-        Returns:
-            Dict con los resultados organizados por categoría.
-        """
-        results = {}
-        for category_name, category in self.categories.items():
-            results[category_name] = category.apply_all(original_excerpt, tempo=tempo)
-        return results
-    
+
     def get_mutation(self, category_name: str, mutation_name: str) -> Optional[MutationResult]:
         """Obtiene una mutación específica."""
         if category_name in self.categories:

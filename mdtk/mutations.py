@@ -90,10 +90,6 @@ def time_shift_mutation(
         Lista de tipos de notas musicales para usar como silencios 
         ('eighth', 'sixteenth', 'quarter', etc.).
 
-    early_probability : float
-        Probabilidad de que el silencio se inserte antes de la nota 
-        (vs después), simulando anticipación vs retraso.
-
     tries : int
         The number of times to try the degradation before giving up, in the case
         that the degraded excerpt overlaps.
@@ -122,29 +118,13 @@ def time_shift_mutation(
     # Seleccionar tipo de nota musical aleatoriamente
     note_type = choice(note_types)
     
-    # Calcular duración del silencio musical
     silence_duration = calculate_musical_duration(tempo, note_type)
-    
-    # Decidir si insertar el silencio antes (early) o después (late) de la nota
-    insert_early = np.random.random() < early_probability
     
     degraded = excerpt.copy()
     old_onset = excerpt.loc[index, "onset"]
     
-    if insert_early:
-        # Insertar silencio antes: mover la nota seleccionada y todas las posteriores hacia adelante
-        new_onset = old_onset + silence_duration
-        degraded.loc[index, "onset"] = new_onset
-        
-        # Mover todas las notas posteriores
-        mask_later_notes = degraded.index != index
-        mask_later_notes &= degraded["onset"] >= old_onset
-        degraded.loc[mask_later_notes, "onset"] += silence_duration
-        
-    else:
-        # Insertar silencio después: mover solo las notas posteriores a la seleccionada
-        mask_later_notes = degraded["onset"] > old_onset
-        degraded.loc[mask_later_notes, "onset"] += silence_duration
+    mask_later_notes = degraded["onset"] > old_onset
+    degraded.loc[mask_later_notes, "onset"] += silence_duration
 
     # Verificar solapamientos
     if any(overlaps(degraded, idx) for idx in degraded.index):
@@ -160,12 +140,12 @@ def time_shift_mutation(
         )
 
     degraded = post_process(degraded)
-    return degraded
+    return degraded, index
 
 
-def faster_tempo(excerpt, tempo_factor=1.2):
+def tempo_change(excerpt, tempo_factor=1.2):
     """
-    Accelerates the tempo by multiplying all times by a factor < 1
+    Accelerates the tempo by multiplying all times by a factor
     
     Parameters
     ----------
@@ -190,13 +170,7 @@ def faster_tempo(excerpt, tempo_factor=1.2):
     
     return post_process(degraded)
 
-def slower_tempo(excerpt, tempo_factor=0.8):
-    """
-    Slows down the tempo by multiplying all times by a factor > 1
-    """
-    return faster_tempo(excerpt, tempo_factor=tempo_factor)
-
-def accelerando_tempo(excerpt, end_factor):
+def progressive_tempo_change(excerpt, end_factor):
     """
     Acceleration of the tempo over time.
     
@@ -236,12 +210,6 @@ def accelerando_tempo(excerpt, end_factor):
         degraded.loc[idx, "dur"] = max(1, int(degraded.loc[idx, "dur"] * scale_factor))
     
     return post_process(degraded)
-
-def ritardando_tempo(excerpt, end_factor=0.7):
-    """
-    Ritardando tempo mutation, where the tempo decreases over time.
-    """
-    return accelerando_tempo(excerpt, end_factor=end_factor)
 
 def articulated_staccato(excerpt, gap=30):
     """
@@ -387,7 +355,7 @@ def offset_cut(
         )
 
     degraded = post_process(degraded)
-    return degraded
+    return degraded, index
 
 @set_random_seed
 def remove_intermediate_note(excerpt, tries=TRIES_DEFAULT):
@@ -427,15 +395,12 @@ def remove_intermediate_note(excerpt, tries=TRIES_DEFAULT):
         logging.warning("No intermediate notes to remove. Returning None.")
         return None
     
-    # Sample a random note
-    note_index = choice(possible_notes)
+    index = choice(possible_notes)
 
-    # Remove that note
-    degraded = degraded.drop(note_index)
+    degraded = degraded.drop(index)
 
-    # No need to check for overlap
     degraded = post_process(degraded, sort=False)
-    return degraded
+    return degraded, index
 
 @set_random_seed
 def note_played_too_soon_mutation(
@@ -539,4 +504,4 @@ def note_played_too_soon_mutation(
         )
 
     degraded = post_process(degraded)
-    return degraded
+    return degraded, index

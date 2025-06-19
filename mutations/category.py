@@ -19,21 +19,24 @@ class MutationCategory:
     def add_mutation(self, mutation: MutationResult):
         """Añade una mutación a la categoría."""
         self.mutations[mutation.name] = mutation
-    def apply_all(self, original_excerpt: pd.DataFrame, tempo: int = 120) -> Dict[str, bool]:
-        """
-        Aplica todas las mutaciones de la categoría.
         
-        Args:
-            original_excerpt: DataFrame con el excerpt musical original
-            tempo: Tempo en BPM del MIDI original
+    # def apply_all(self, original_excerpt: pd.DataFrame, tempo: int = 120) -> Dict[str, bool]:
+    #     """
+    #     Aplica todas las mutaciones de la categoría.
         
-        Returns:
-            Dict[str, bool]: Diccionario con el resultado de cada mutación.
-        """
-        results = {}
-        for name, mutation in self.mutations.items():
-            results[name] = mutation.apply(original_excerpt, tempo=tempo)
-        return results
+    #     Args:
+    #         original_excerpt: DataFrame con el excerpt musical original
+    #         tempo: Tempo en BPM del MIDI original
+        
+    #     Returns:
+    #         Dict[str, bool]: Diccionario con el resultado de cada mutación.
+    #     """
+    #     results = {}
+    #     logs = {}
+    #     for name, mutation in self.mutations.items():
+    #         results[name], logs[name] = mutation.apply(original_excerpt, tempo=tempo)
+
+    #     return results
     
     def get_successful_mutations(self) -> List[MutationResult]:
         """Retorna solo las mutaciones que fueron exitosas."""

@@ -9,14 +9,18 @@ from pathlib import Path
 
 def check_extension(file_path: str, midi_name) -> str:
     if Path(file_path).suffix.lower() == '.mid':
-        reference_audio, tempo, audio_path = obtener_audio_de_midi(file_path, midi_name)
+        result = obtener_audio_de_midi(file_path, midi_name)
+        if result is None:
+            raise ValueError(f"Error obtaining audio from MIDI file: {file_path}")
+        reference_audio, tempo, audio_path = result
     else:
         audio_path = file_path
-    return audio_path
+    return str(audio_path)
 
 def load_audio_files(reference_path: str, live_path: str) -> Tuple[np.ndarray, np.ndarray, int]:
     """Carga archivos de audio."""
     reference_audio, sr = librosa.load(reference_path)
+    sr = int(sr)  # Ensure sr is always an int
     live_audio, _ = librosa.load(live_path, sr=sr)  # Usar mismo sr
     
     return reference_audio, live_audio, sr
@@ -64,8 +68,6 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
 
 
 def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, save_name, save_dir):
-    if save_dir is None:
-        save_dir = "aligned"
     
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8,4))
     librosa.display.waveshow(x_audio, sr=fs, ax=ax2)
@@ -80,10 +82,6 @@ def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, sav
 
 def save_audio(audio, save_name, save_dir, sample_rate):
     """Guarda el audio en un fichero WAV."""
-    # Use default directory if save_dir is None
-    if save_dir is None:
-        save_dir = "aligned"
-    
     audio_normalized = np.int16(audio / np.max(np.abs(audio)) * 32767)
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     output_filename = Path(save_dir) / f"{save_name}.wav"
@@ -99,7 +97,7 @@ def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_l
     save_audio(aligned, save_name, save_dir, fs)
     return aligned
 
-def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: bool = False) -> Optional[Tuple[np.ndarray, int, str]]:
+def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
     # Importar aquí para evitar dependencia circular
     from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
     
@@ -134,6 +132,7 @@ def ejemplo():
     hop_length = 1024
     x_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
     y_audio, fs = librosa.load('mutts/audios/Acordai-100_faster_tempo.wav')
+    fs = int(fs)  # Asegurarse de que fs sea un entero
     D, wp, wp_s = calculate_warping_path(x_audio, y_audio, fs, hop_length)
     print(len(x_audio), len(y_audio), len(wp), len(wp_s))
     n_arrows = 50

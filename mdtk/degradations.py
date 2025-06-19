@@ -414,7 +414,7 @@ def pitch_shift(
         )
 
     degraded = post_process(degraded)
-    return degraded
+    return degraded, note_index
 
 
 @set_random_seed
@@ -889,7 +889,7 @@ def offset_shift(
         )
 
     degraded = post_process(degraded)
-    return degraded
+    return degraded, index
 
 
 @set_random_seed
@@ -1151,7 +1151,7 @@ def add_note(
         )
 
     degraded = post_process(degraded)
-    return degraded
+    return degraded, note
 
 
 @set_random_seed

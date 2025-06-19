@@ -47,11 +47,8 @@ EPILOG = """Ejemplos de uso:
   # Usar un archivo MIDI específico
   python mutar_y_analizar.py --midi path/to/your/file.mid
 
-  # Usar configuración de análisis estricta
-  python mutar_y_analizar.py --analysis-mode strict
-
   # Combinación de opciones
-  python mutar_y_analizar.py --midi midi/Acordai-100.mid --categories timing_errors pitch_errors --analysis-mode relaxed
+  python mutar_y_analizar.py --midi midi/Acordai-100.mid --categories timing_errors pitch_errors
 
 Categorías disponibles:
   - pitch_errors: Errores de altura de las notas
@@ -60,16 +57,9 @@ Categorías disponibles:
   - duration_errors: Errores de duración de las notas
   - note_errors: Errores de presencia de notas
   - articulation_errors: Errores de articulación
-
-Modos de análisis disponibles:
-  - default: Configuración estándar del sistema
-  - strict: Alta precisión, tolerancias estrictas (50ms onsets)
-  - relaxed: Tolerancias permisivas para análisis general (200ms onsets)
-  - mutations: Optimizado para mutaciones (100ms onsets) [por defecto]
         """
 
 def metronia_arg_parser():
-        # Configurar argumentos de línea de comandos
     parser = argparse.ArgumentParser(
         description="Pipeline MetronIA: Genera mutaciones y analiza interpretaciones musicales",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -99,15 +89,6 @@ def metronia_arg_parser():
         '--list-categories',
         action='store_true',
         help='Mostrar todas las categorías disponibles y salir'
-    )
-    
-    parser.add_argument(
-        '--analysis-mode',
-        type=str,
-        choices=['default', 'strict', 'relaxed', 'mutations'],
-        default='mutations',
-        help='Modo de análisis: default (configuración estándar), strict (alta precisión), '
-             'relaxed (tolerante), mutations (optimizado para mutaciones) (default: mutations)'
     )
     return parser.parse_args()
 
@@ -186,7 +167,7 @@ def aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name
                 success = mutation.apply(
                     original_excerpt, 
                     tempo=base_tempo,
-                    save_changes=False  # No guardar cambios aquí, se guardará en análisis individual
+                    output_dir=str(mutations_base_dir)  
                 )
                 
                 if success and mutation.excerpt is not None:
@@ -199,7 +180,9 @@ def aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name
                         base_tempo=base_tempo  # Usar el tempo extraído del MIDI original
                     )
                     
-                    mutation.set_path(audio_path)
+                    mutation.set_audio_path(audio_path)
+                    mutation.set_midi_path(midi_path)
+                    
                     successful_mutations.append((category_name, mutation_name, mutation, audio_path, original_excerpt))
                 else:
                     failed_mutations.append((category_name, mutation_name, mutation.error or "Unknown error"))
@@ -218,7 +201,7 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
     Analiza cada mutación contra el audio de referencia.
     
     Args:
-        successful_mutations: Lista de mutaciones exitosas        
+        successful_mutations: Lista de mutaciones exitosas
         reference_audio_path: Ruta del audio de referencia
         base_tempo: Tempo base del MIDI
         midi_name: Nombre base del archivo MIDI  
@@ -246,15 +229,6 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
                 reference_tempo=base_tempo,
             )           
             
-            if mutation.success and mutation.excerpt is not None:
-                # Analizar cambios usando el método privado de la mutación
-                changes = mutation._analyze_changes(original_excerpt, mutation.excerpt)
-                mutation_tempo = mutation.get_mutation_tempo(base_tempo)
-                
-                # Guardar CSV con nombre personalizado: changes_detailed.csv
-                changes_csv_path = Path(analysis_dir) / "changes_detailed.csv"
-                mutation._save_changes_to_csv(changes, changes_csv_path)
-                
             # Obtener datos básicos para el CSV consolidado (sin duplicar el CSV individual)
             dtw_onset_result = analysis_result.get('dtw_onsets')
             if dtw_onset_result:
@@ -382,7 +356,8 @@ DISTRIBUCIÓN POR CATEGORÍAS:
     
     print(f"✅ Reporte de resumen guardado: {report_path}")
 
-def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "results", categories_filter: Optional[List[str]] = None):
+def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "results", 
+                           categories_filter: Optional[List[str]] = None):
     """
     Pipeline completo para generar mutaciones y analizar interpretaciones.
     
@@ -391,25 +366,30 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
         output_base_dir: Directorio base para guardar resultados
         categories_filter: Lista de categorías específicas a aplicar. Si es None, aplica todas.
     """
-        
-    print("=" * 100)
+    print("=" * 60)
     print("🎵 Mutaciones de MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios")
-    print("=" * 100)
-      # Configuración
+    print("=" * 60)
+    
+    # Configuración
     midi_path = Path(midi_file_path)
     midi_name = midi_path.stem
     results_dir = Path(output_base_dir)
     results_dir.mkdir(exist_ok=True)
     
-    original_excerpt, base_tempo, reference_audio_path = obtener_audio_de_midi(midi_file_path, midi_name+"_reference")
-    
+    reference_audio_path = midi_name+"_reference"
+    audio_result = obtener_audio_de_midi(midi_file_path, reference_audio_path)
+    if audio_result is None:
+        print(f"❌ Error: obtener_audio_de_midi no pudo procesar el archivo {midi_file_path}.")
+        return
+    original_excerpt, base_tempo, reference_audio_path = audio_result
+
     mutation_manager = filtrar_mutaciones(categories_filter)
-    
+
     successful_mutations = aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name, results_dir)
     
     analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, midi_name, results_dir)
     
-    run_validation_analysis(midi_name, results_dir)
+    # run_validation_analysis(midi_name, results_dir)
 
 def listar_categorias():
     print("📋 CATEGORÍAS DE MUTACIONES DISPONIBLES:")
@@ -474,7 +454,8 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> None:
     print(f"   - Reporte detallado: {validation_report_path}")
     print(f"   - Resultados CSV: {validation_csv_path}")
     
-    # Mostrar rendimiento por categoría    print(f"\n📈 RENDIMIENTO POR CATEGORÍA:")
+    # Mostrar rendimiento por categoría
+    print(f"\n📈 RENDIMIENTO POR CATEGORÍA:")
     for category, metrics in validation_result.category_performance.items():
         print(f"   {category}: F1={metrics['f1_score']:.3f}, "
               f"Precisión={metrics['precision']:.3f}, "
@@ -488,6 +469,7 @@ def main():
     if args.list_categories:
         listar_categorias()
         return
+    
     # Configurar archivo MIDI
     MIDI_FILE_PATH = args.midi
     
@@ -505,7 +487,8 @@ def main():
         print(f"  🎯 Categorías filtradas: {', '.join(args.categories)}")
     else:
         print(f"  🎯 Categorías: Todas (sin filtro)")
-      # Ejecutar pipeline
+    
+    # Ejecutar pipeline
     try:
         create_mutation_pipeline(
             midi_file_path=MIDI_FILE_PATH,

@@ -106,7 +106,7 @@ class OnsetDTWAnalyzer:
                 time_adjustment = (ref_onset - live_onset)
                 diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
                 pitch_similarity = OnsetUtils.calculate_pitch_similarity(ref_pitch, live_pitch)
-                if abs(diff_adj) < self.tolerance_ms:
+                if abs(diff_adj) <= self.tolerance_ms:
                     classification = OnsetType.CORRECT
                 elif diff_adj < 0:
                     classification = OnsetType.LATE
