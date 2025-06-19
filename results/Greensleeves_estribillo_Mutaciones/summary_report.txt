@@ -2,7 +2,7 @@
 REPORTE DE MUTACIONES - METRONIA
 ==================================================
 Archivo de referencia: Greensleeves_estribillo
-Fecha de análisis: 2025-06-19 01:29:35
+Fecha de análisis: 2025-06-20 00:19:39
 
 RESUMEN GENERAL:
 - Total de mutaciones aplicadas: 2

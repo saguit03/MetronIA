@@ -1,3 +1,0 @@
-midi_name,mutation_category,mutation_name,true_positives,false_positives,true_negatives,false_negatives,precision,recall,f1_score,accuracy,expected_changes,detected_changes,total_notes
-Greensleeves_estribillo,timing_errors,note_too_late,1,0,0,1,1.0,0.5,0.6666666666666666,0.5,1,1,2
-Greensleeves_estribillo,timing_errors,note_too_soon,2,0,0,1,1.0,0.6666666666666666,0.8,0.6666666666666666,1,2,3

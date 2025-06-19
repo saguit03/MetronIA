@@ -1,3 +1,0 @@
-midi_name,mutation_category,mutation_name,true_positives,false_positives,true_negatives,false_negatives,precision,recall,f1_score,accuracy,expected_changes,detected_changes,total_notes
-Melody_Nokia_Tarrega_Gran_Vals,timing_errors,note_too_late,3,0,0,1,1.0,0.75,0.8571428571428571,0.75,1,3,4
-Melody_Nokia_Tarrega_Gran_Vals,timing_errors,note_too_soon,9,0,0,1,1.0,0.9,0.9473684210526316,0.9,1,9,10
