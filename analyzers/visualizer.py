@@ -27,7 +27,7 @@ class AudioVisualizer:
         ax.set_xlabel("Time Lag (s)")
         ax.set_ylabel("Similarity")
         ax.set_title("Comparación de Beat Spectrums alineados con DTW")
-        ax.legend()        
+        fig.legend(loc='lower right')
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
 
@@ -74,7 +74,7 @@ class AudioVisualizer:
         ax.set_yticks([])
         ax.set_xlabel('Tiempo (segundos)')
         ax.set_title('Errores de ejecución nota por nota: adelantados, atrasados, extras y faltantes')
-        ax.legend(loc='upper right')
+        fig.legend(loc='lower right')
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
         

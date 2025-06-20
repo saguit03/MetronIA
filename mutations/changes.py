@@ -57,9 +57,9 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
         if isinstance(log, NoteMutationDetail):
             onset = np.round(log.onset_timestamp/1000, 3)
             aux = pd.DataFrame({
-                'onset_timestamp': [onset],
+                'onset_type': [log.change_type],
+                'onset_time': [onset],
                 'pitch': [log.pitch],
-                'change_type': [log.change_type]
             })
             df = pd.concat([df, aux], ignore_index=True)
             # print(f"Log {i}: {log.change_type} at {log.onset_timestamp}, pitch: {log.pitch}")
@@ -67,6 +67,9 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
             df.insert(i, log.change_type, log.factor)
             # print(f"Log {i}: {log.change_type} with factor {log.factor}")
 
+    if df.size > 1:
+        df.sort_values(by='onset_time', inplace=True)
+        
     logs_dir = Path(save_dir) / "logs"
     Path(logs_dir).mkdir(parents=True, exist_ok=True)
     csv_path = Path(logs_dir) / f"{save_name}.csv"

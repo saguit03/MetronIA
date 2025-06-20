@@ -71,7 +71,6 @@ def time_shift_mutation(
     excerpt,
     tempo=120,
     note_types=['eighth', 'sixteenth'],
-    early_probability=0.3,
     tries=TRIES_DEFAULT,
 ):
     """
@@ -135,7 +134,6 @@ def time_shift_mutation(
             excerpt,
             tempo=tempo,
             note_types=note_types,
-            early_probability=early_probability,
             tries=tries - 1,
         )
 
@@ -143,7 +141,7 @@ def time_shift_mutation(
     return degraded, index
 
 
-def tempo_change(excerpt, tempo_factor=1.2):
+def tempo_change(excerpt, tempo_factor):
     """
     Accelerates the tempo by multiplying all times by a factor
     

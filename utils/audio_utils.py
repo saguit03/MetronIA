@@ -89,7 +89,6 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     return output_filename
 
 def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows = 50, save_name = "aligned", save_dir: Optional[str] = "aligned"):
-    # Use default directory if save_dir is None
     if save_dir is None:
         save_dir = "aligned"
     aligned = sinc_creciente(y_audio, wp_s, fs, len(x_audio), n_arrows=n_arrows)
@@ -118,6 +117,7 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
 
     try:
         reference_audio_path = save_excerpt_in_audio(
+            dir_name=midi_name,
             excerpt=original_excerpt,
             save_name=f"{midi_name}"
         )

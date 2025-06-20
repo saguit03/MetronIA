@@ -18,3 +18,4 @@ class AudioAnalysisConfig:
     beat_spectrum_threshold: float = 0.2
     plot_dpi: int = 300
     tolerance_ms: float = 0.15
+    round_decimals: int = 1

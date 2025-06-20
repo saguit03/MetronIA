@@ -243,7 +243,6 @@ class TempoAnalyzer:
                     
                     tempo_live = best_tempo
         else:
-            # Si no tenemos tempo de referencia, usar análisis robusto
             return self.analyze_tempo_robust(audio_ref, audio_live, sr)
         
         # Calcular resultados finales

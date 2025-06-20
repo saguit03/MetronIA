@@ -146,56 +146,6 @@ def print_analysis_summary(analysis_result: Dict[str, Any], analysis_name: str):
         print(f"   📊 Diferencia máxima: {beat_result.max_difference:.3f}")
         print(f"   ✅ Similar: {'Sí' if beat_result.is_similar else 'No'}")
 
-
-def main():
-    """Función principal del analizador."""
-    
-    print("=" * 70)
-    print("🎵 ANALIZADOR METRONIA - ANÁLISIS DE INTERPRETACIÓN MUSICAL")
-    print("=" * 70)
-    
-    # 1. VALIDAR ARGUMENTOS
-    print(f"\n🔍 Validando argumentos...")
-    ref_path, live_path, nombre_analisis = validate_arguments()
-    
-    # 2. GENERAR NOMBRE DE ANÁLISIS SI NO SE PROPORCIONA
-    if not nombre_analisis:
-        nombre_analisis = generate_analysis_name(live_path)
-        print(f"📝 Nombre de análisis generado: {nombre_analisis}")
-    
-    print(f"✅ Argumentos validados correctamente")
-    
-    # 3. CREAR DIRECTORIO DE RESULTADOS
-    print(f"\n📁 Preparando directorio de resultados...")
-    results_dir = create_results_directory()
-    print(f"✅ Directorio de resultados: {results_dir.absolute()}")
-    
-    # 4. REALIZAR ANÁLISIS
-    print(f"\n🎼 Realizando análisis completo...")
-    analysis_result = analyze_audio_files(ref_path, live_path, nombre_analisis)
-    
-    # 5. MOSTRAR RESUMEN
-    print_analysis_summary(analysis_result, nombre_analisis)
-    
-    # 6. INFORMACIÓN SOBRE ARCHIVOS GENERADOS
-    print(f"\n🎉 ANÁLISIS COMPLETADO EXITOSAMENTE")
-    print(f"📂 Archivos generados en: {results_dir.absolute()}")
-    print(f"📊 Archivos disponibles:")
-    
-    # Verificar archivos generados
-    onsets_csv = results_dir / f"onsets_analysis_{nombre_analisis}.csv"
-    if onsets_csv.exists():
-        print(f"   📄 CSV de onsets: {onsets_csv.name}")
-    
-    # Buscar gráficas generadas
-    plot_files = list(results_dir.glob(f"*{nombre_analisis}*.png"))
-    if plot_files:
-        print(f"   � Gráficas generadas: {len(plot_files)} archivo(s)")
-        for plot_file in sorted(plot_files):
-            print(f"      - {plot_file.name}")
-    
-    print(f"\n💡 Revise el directorio 'results' para ver todos los archivos generados")
-
 def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Dict[str, Any]:
     """
     Realiza el análisis completo entre los dos archivos de audio.
@@ -212,13 +162,16 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
     try:
         # Crear analizador
         analyzer = MusicAnalyzer()
+
+        save_dir = Path("results") / analysis_name
+        save_dir.mkdir(parents=True, exist_ok=True)
         
         # Realizar análisis completo
         analysis_result = analyzer.comprehensive_analysis(
             reference_path=ref_path,
             live_path=live_path,
             save_name=analysis_name,
-            save_dir=analysis_name
+            save_dir=save_dir
         )
         
         print(f"✅ Análisis completado exitosamente")
@@ -266,15 +219,12 @@ def move_plots_to_analysis_directory(analysis_name: str, analysis_dir: Path):
 def main():
     """Función principal del analizador."""
     
-    print("=" * 90)
-    print("🎵 ANALIZADOR METRONIA - ANÁLISIS DE INTERPRETACIÓN MUSICAL")
-    print("=" * 90)
+    print("=" * 70)
+    print("🎵 MetronIA - Análisis de Sincronía de ritmos en audios")
+    print("=" * 70)
     
     ref_path, live_path, analysis_name = validate_arguments()
     
-    # ref_path = check_extension(ref_path, analysis_name+ "_ref")
-    # live_path = check_extension(live_path, analysis_name + "_live")
-
     analysis_result = analyze_audio_files(ref_path, live_path, analysis_name)
     
 if __name__ == "__main__":

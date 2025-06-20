@@ -6,14 +6,15 @@ from pathlib import Path
 import scipy.io.wavfile as wavfile
 import numpy as np
 from mdtk.utils import synthesize_from_note_df
-from mutations.config import MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
+from mutations.config import MUTATIONS_PATH, MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
 from mutations.results import MutationResult
 from utils.audio_utils import save_audio
 
-def save_excerpt_in_audio(excerpt, save_name, sample_rate=16000):
+def save_excerpt_in_audio(excerpt, dir_name, save_name, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-    output_filename = save_audio(audio_normalized, save_name, MUTATIONS_AUDIO_PATH, sample_rate)
+    save_dir = MUTATIONS_PATH / Path(dir_name) / MUTATIONS_AUDIO_PATH
+    output_filename = save_audio(audio_normalized, save_name, save_dir, sample_rate)
     return output_filename
 
 def load_midi_with_mido(midi_file_path, bpm=120):
@@ -75,7 +76,7 @@ def load_midi_with_pretty_midi(midi_file_path):
     
     return df
 
-def save_excerpt_in_midi(excerpt, save_name, tempo=120):
+def save_excerpt_in_midi(excerpt, dir_name, save_name, tempo=120):
     """
     Guarda un excerpt (DataFrame con notas) como archivo MIDI.
     
@@ -93,8 +94,10 @@ def save_excerpt_in_midi(excerpt, save_name, tempo=120):
     Path
         Ruta del archivo MIDI guardado
     """ 
-    Path(MUTATIONS_MIDI_PATH).mkdir(parents=True, exist_ok=True)
-    output_filename = Path(MUTATIONS_MIDI_PATH) / f"{save_name}.mid"
+
+    save_dir = MUTATIONS_PATH / Path(dir_name) / MUTATIONS_MIDI_PATH
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
+    output_filename = Path(save_dir) / f"{save_name}.mid"
     
     # Crear objeto PrettyMIDI
     midi_data = pretty_midi.PrettyMIDI(initial_tempo=tempo)
@@ -130,7 +133,7 @@ def save_excerpt_in_midi(excerpt, save_name, tempo=120):
     
     return output_filename
 
-def save_mutation_complete(mutation_result: MutationResult, save_name, base_tempo=120, soundfont_path=None, sample_rate=16000):
+def save_mutation_complete(mutation_result: MutationResult, mutation_name, save_name, base_tempo=120, soundfont_path=None, sample_rate=16000):
     """
     Guarda una mutación completa como archivo de audio (WAV) y MIDI con el tempo correcto.
     
@@ -159,9 +162,9 @@ def save_mutation_complete(mutation_result: MutationResult, save_name, base_temp
     calculated_tempo = mutation_result.get_mutation_tempo(base_tempo)
     
     # Guardar archivos con el tempo calculado
-    audio_path = save_excerpt_in_audio(mutation_result.excerpt, save_name, sample_rate)
-    midi_path = save_excerpt_in_midi(mutation_result.excerpt, save_name, calculated_tempo)
-    print(f"Guardando mutación en audio: {audio_path}, MIDI: {midi_path} con tempo: {calculated_tempo}")
+    audio_path = save_excerpt_in_audio(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name, sample_rate=sample_rate)
+    midi_path = save_excerpt_in_midi(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name, tempo=calculated_tempo)
+    # print(f"Guardando mutación en audio: {audio_path}, MIDI: {midi_path} con tempo: {calculated_tempo}")
     
     return audio_path, midi_path, calculated_tempo
 

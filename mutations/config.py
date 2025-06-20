@@ -38,8 +38,8 @@ SEED = None
 
 # Configuración de rutas usando pathlib.Path
 MUTATIONS_PATH = Path("mutts")
-MUTATIONS_AUDIO_PATH = MUTATIONS_PATH / "audios"
-MUTATIONS_MIDI_PATH = MUTATIONS_PATH / "midis"
-MUTATIONS_PLOTS_PATH = MUTATIONS_PATH / "plots"
+MUTATIONS_AUDIO_PATH = "audios"
+MUTATIONS_MIDI_PATH = "midis"
+MUTATIONS_PLOTS_PATH = "plots"
 
 

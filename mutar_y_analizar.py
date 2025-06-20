@@ -20,7 +20,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from mutations.manager import MutationManager
-from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, save_mutation_complete, extract_tempo_from_midi
+from mutations.midi_utils import save_mutation_complete
 from analyzers import MusicAnalyzer
 from analyzers.config import AudioAnalysisConfig
 from analyzers.validation_analyzer import MutationValidationAnalyzer
@@ -65,11 +65,19 @@ def metronia_arg_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=EPILOG)
     
-    parser.add_argument(
+    midi_group = parser.add_mutually_exclusive_group()
+    
+    midi_group.add_argument(
         '--midi',
         type=str,
         default="midi/Acordai-110.mid",
         help='Ruta al archivo MIDI de referencia (default: midi/Acordai-110.mid)'
+    )
+    
+    midi_group.add_argument(
+        '--all_midi',
+        type=str,
+        help='Ruta a un directorio para procesar todos los archivos .mid que contiene.'
     )
     
     parser.add_argument(
@@ -160,10 +168,6 @@ def aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name
     for category_name, category in mutation_manager.categories.items():
         for mutation_name, mutation in category.mutations.items():
             try:
-                # Crear nombre completo de la mutación
-                full_mutation_name = f"{category_name}_{mutation_name}"
-                
-                # Aplicar mutación sin guardar cambios aún (se guardará en análisis individual)
                 success = mutation.apply(
                     original_excerpt, 
                     tempo=base_tempo,
@@ -171,13 +175,12 @@ def aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name
                 )
                 
                 if success and mutation.excerpt is not None:
-                    # Generar archivo de audio y MIDI con tempo correcto
                     file_name = f"{midi_name}_{mutation_name}"
-                      # Usar save_mutation_complete para calcular automáticamente el tempo
                     audio_path, midi_path, calculated_tempo = save_mutation_complete(
                         mutation_result=mutation,
+                        mutation_name=midi_name,
                         save_name=file_name,
-                        base_tempo=base_tempo  # Usar el tempo extraído del MIDI original
+                        base_tempo=base_tempo
                     )
                     
                     mutation.set_audio_path(audio_path)
@@ -366,9 +369,6 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
         output_base_dir: Directorio base para guardar resultados
         categories_filter: Lista de categorías específicas a aplicar. Si es None, aplica todas.
     """
-    print("=" * 60)
-    print("🎵 Mutaciones de MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios")
-    print("=" * 60)
     
     # Configuración
     midi_path = Path(midi_file_path)
@@ -462,6 +462,47 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> None:
               f"Recall={metrics['recall']:.3f} "
               f"({metrics['mutations_count']} mutaciones)")
 
+def get_midi_files_from_directory(directory_path: str) -> List[str]:
+    """
+    Encuentra todos los archivos .mid en un directorio y sus subdirectorios.
+    
+    Args:
+        directory_path: Ruta al directorio a explorar.
+        
+    Returns:
+        Lista de rutas a los archivos .mid encontrados.
+    """
+    midi_files = []
+    if not os.path.isdir(directory_path):
+        print(f"Error: '{directory_path}' no es un directorio válido.")
+        return []
+
+    for item in os.listdir(directory_path):
+        item_path = os.path.join(directory_path, item)
+        if os.path.isfile(item_path) and item.lower().endswith(('.mid', '.midi')):
+            midi_files.append(item_path)
+    return midi_files
+
+def get_midi_files_to_process(args) -> List[str]:
+    midi_files_to_process = []
+    if args.all_midi:
+        if not os.path.isdir(args.all_midi):
+            print(f"❌ Error: El directorio especificado en --all_midi no existe: {args.all_midi}")
+            return
+        midi_files_to_process = get_midi_files_from_directory(args.all_midi)
+        if not midi_files_to_process:
+            print(f"⚠️ No se encontraron archivos .mid en el directorio: {args.all_midi}")
+            return
+        print(f"🎶 Encontrados {len(midi_files_to_process)} archivos MIDI para procesar.")
+    else:
+        # Usar el archivo MIDI individual especificado (o el por defecto)
+        if not os.path.exists(args.midi):
+            print(f"❌ Error: El archivo {args.midi} no existe.")
+            print("Por favor, verifica la ruta del archivo MIDI.")
+            return
+        midi_files_to_process.append(args.midi)
+    return midi_files_to_process
+
 def main():
     """Función principal del pipeline."""
     args = metronia_arg_parser()
@@ -469,41 +510,43 @@ def main():
     if args.list_categories:
         listar_categorias()
         return
-    
-    # Configurar archivo MIDI
-    MIDI_FILE_PATH = args.midi
-    
-    # Verificar que el archivo existe
-    if not os.path.exists(MIDI_FILE_PATH):
-        print(f"❌ Error: El archivo {MIDI_FILE_PATH} no existe.")
-        print("Por favor, verifica la ruta del archivo MIDI.")
-        return
-    
-    # Mostrar configuración
-    print("🎵 CONFIGURACIÓN DEL PIPELINE:")
-    print(f"  📄 Archivo MIDI: {MIDI_FILE_PATH}")
+
+    midi_files_to_process = get_midi_files_to_process(args)
+    print("=" * 90)
+    print("🎵 Mutaciones de MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios")
+    print("=" * 90)
+
+    # Mostrar configuración general
+    print("\n🎵 CONFIGURACIÓN GENERAL DEL PIPELINE:")
     print(f"  📁 Directorio salida: {args.output}")
     if args.categories:
         print(f"  🎯 Categorías filtradas: {', '.join(args.categories)}")
     else:
         print(f"  🎯 Categorías: Todas (sin filtro)")
-    
-    # Ejecutar pipeline
-    try:
-        create_mutation_pipeline(
-            midi_file_path=MIDI_FILE_PATH,
-            output_base_dir=args.output,
-            categories_filter=args.categories
-        )
-        
-    except KeyboardInterrupt:
-        print(f"[X] Pipeline interrumpido por el usuario")
-        
-    except Exception as e:
-        print(f"\n❌ Error en el pipeline: {e}")
-        import traceback
-        traceback.print_exc()
 
+    # Ejecutar pipeline para cada archivo MIDI
+    for midi_file_path in midi_files_to_process:
+        try:
+            print("\n" + "="*50)
+            print(f"▶️  Procesando archivo: {midi_file_path}")
+            print("="*50)
+            
+            create_mutation_pipeline(
+                midi_file_path=midi_file_path,
+                output_base_dir=args.output,
+                categories_filter=args.categories
+            )
+            
+        except KeyboardInterrupt:
+            print(f"[X] Pipeline interrumpido por el usuario.")
+            break  # Salir del bucle si el usuario interrumpe
+            
+        except Exception as e:
+            print(f"\n❌ Error procesando {midi_file_path}: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    print("\n✅ Pipeline completado para todos los archivos.")
 
 if __name__ == "__main__":
     main()

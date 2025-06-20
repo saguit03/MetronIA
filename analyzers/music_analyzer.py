@@ -42,7 +42,7 @@ class MusicAnalyzer:
  
     def comprehensive_analysis(self, reference_path: str, live_path: str, 
                              save_name: Optional[str] = None,
-                             reference_tempo: Optional[float] = 120,
+                             reference_tempo: Optional[float] = None,
                              save_dir: Optional[str] = None) -> Dict[str, Any]:
         """
         Realiza un análisis completo de las interpretaciones.
@@ -63,7 +63,8 @@ class MusicAnalyzer:
         if tempo_result.is_similar:
             aligned_audio_live = audio_live
         else:
-            aligned_audio_live = stretch_audio(audio_ref, audio_live, wp_s, sr, self.config.hop_length, save_name="aligned_audio_live", save_dir=save_dir)
+            print(f"Ajustando tempo en vivo de {tempo_result.tempo_live:.1f} BPM a {tempo_result.tempo_ref:.1f} BPM")
+            aligned_audio_live = stretch_audio(audio_ref, audio_live, wp_s, sr, self.config.hop_length, save_name="aligned_audio", save_dir=save_dir)
 
         beat_result = self.beat_spectrum_analyzer.beat_spectrum(audio_ref, aligned_audio_live, sr)
 

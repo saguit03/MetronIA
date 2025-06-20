@@ -45,9 +45,15 @@ VERBOSE = False
 
 def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
     logs = []
+    # For tempo mutations, the log is global, not per-note
+    if isinstance(mutation_log, TempoMutationDetail):
+        logs.append(mutation_log)
+        return logs
+
     for onset, pitch in zip(mutation["onset"], mutation["pitch"]):
         if VERBOSE: print(f"Onset: {onset}, Pitch: {pitch}")
         logs.append(NoteMutationDetail(change_type="no_change", onset_timestamp=onset, pitch=pitch))
+        
     if index is not None:
         logs.pop(index)
 
@@ -108,7 +114,7 @@ def note_played_too_soon_mutation_controller(excerpt, tempo=120):
     
 # note_played_too_late. Played AFTER it should
 def note_played_too_late_mutation(excerpt, tempo=120):
-    mutation, index = time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'], early_probability=0.3)
+    mutation, index = time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'])
     log = NoteMutationDetail(change_type="late", onset_timestamp=mutation.loc[index, "onset"], pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 

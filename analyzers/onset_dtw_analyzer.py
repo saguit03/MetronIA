@@ -103,7 +103,7 @@ class OnsetDTWAnalyzer:
                 live_onset = onsets_live[live_idx]
                 ref_pitch = pitches_ref[ref_idx]
                 live_pitch = pitches_live[live_idx]
-                time_adjustment = (ref_onset - live_onset)
+                time_adjustment = np.round((ref_onset - live_onset), self.config.round_decimals)
                 diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
                 pitch_similarity = OnsetUtils.calculate_pitch_similarity(ref_pitch, live_pitch)
                 if abs(diff_adj) <= self.tolerance_ms:
