@@ -2,20 +2,8 @@
 Analizador principal de interpretaciones musicales que integra todos los componentes.
 """
 
-import numpy as np
-import librosa
-import pandas as pd
-import soundfile as sf
-import tempfile
-import os
-from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
-from pydub import AudioSegment
-from pyrubberband import pyrb
-
-from .config import AudioAnalysisConfig
-from .results import BeatSpectrumResult, TempoAnalysisResult
-from .onset_results import OnsetDTWAnalysisResult
+from typing import Optional, Dict, Any
+from .config import AudioAnalysisConfig, VERBOSE_LOGGING
 from .dtw_aligner import DTWAligner
 from .onset_dtw_analyzer import OnsetDTWAnalyzer
 from .onset_utils import OnsetUtils
@@ -63,7 +51,7 @@ class MusicAnalyzer:
         if tempo_result.is_similar:
             aligned_audio_live = audio_live
         else:
-            print(f"Ajustando tempo en vivo de {tempo_result.tempo_live:.1f} BPM a {tempo_result.tempo_ref:.1f} BPM")
+            if VERBOSE_LOGGING: print(f"Ajustando tempo en vivo de {tempo_result.tempo_live:.1f} BPM a {tempo_result.tempo_ref:.1f} BPM")
             aligned_audio_live = stretch_audio(audio_ref, audio_live, wp_s, sr, self.config.hop_length, save_name="aligned_audio", save_dir=save_dir)
 
         beat_result = self.beat_spectrum_analyzer.beat_spectrum(audio_ref, aligned_audio_live, sr)
@@ -78,8 +66,7 @@ class MusicAnalyzer:
         segment_result = self.tempo_analyzer.validate_segments(audio_ref, aligned_audio_live, sr)
         
         # Generar visualizaciones
-        if save_name:
-            # Usar save_dir si se proporciona, sino usar estructura por defecto
+        if save_name:            # Usar save_dir si se proporciona, sino usar estructura por defecto
             if save_dir:
                 analysis_dir = save_dir
             else:
@@ -88,7 +75,7 @@ class MusicAnalyzer:
             self.visualizer.plot_beat_spectrum_comparison(result=beat_result, sr=sr, save_name="beat_spectrum", dir_path=analysis_dir, show=False)
             self.visualizer.plot_timeline_onset_errors_detailed(result=dtw_onset_result, save_name="timeline", dir_path=analysis_dir, show=False)
             self.result_visualizer.plot_onset_errors_detailed(dtw_onset_result=dtw_onset_result, save_name="onset_errors_detailed", dir_path=analysis_dir)
-            self.onset_utils.save_onsets_analysis_to_csv(dtw_onset_result=dtw_onset_result, save_name="analysis", dir_path=analysis_dir)
+            OnsetUtils.save_onsets_analysis_to_csv(dtw_onset_result=dtw_onset_result, save_name="analysis", dir_path=analysis_dir)
 
         return {
             'beat_spectrum': beat_result,

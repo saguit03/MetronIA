@@ -4,6 +4,7 @@ Configuración para el análisis de audio musical.
 
 from dataclasses import dataclass
 
+VERBOSE_LOGGING = False
 
 @dataclass
 class AudioAnalysisConfig:

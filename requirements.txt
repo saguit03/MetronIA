@@ -15,4 +15,4 @@ pyaudio
 PyQt5
 tqdm
 pretty_midi
-pkg_resources
+seaborn

@@ -22,8 +22,8 @@ from tqdm import tqdm
 from mutations.manager import MutationManager
 from mutations.midi_utils import save_mutation_complete
 from analyzers import MusicAnalyzer
-from analyzers.config import AudioAnalysisConfig
-from analyzers.validation_analyzer import MutationValidationAnalyzer
+from analyzers.config import AudioAnalysisConfig, VERBOSE_LOGGING   
+from mutations.validator import run_validation_analysis, generate_average_validation_report
 from utils.audio_utils import obtener_audio_de_midi
 
 MUTTS_ANALYSIS_CONFIG = AudioAnalysisConfig(            
@@ -117,18 +117,16 @@ def save_analysis_results_to_csv(analysis_data: List[Dict[str, Any]], output_fil
     
     # Guardar CSV
     df.to_csv(output_file, index=False, encoding='utf-8')
-    print(f"✅ Resultados guardados en CSV: {output_file}")
+    if VERBOSE_LOGGING: print(f"✅ Resultados guardados en CSV: {output_file}")
     
     return df
 
 def filtrar_mutaciones(categories_filter):
     mutation_manager = MutationManager()
     
-    # Aplicar filtro de categorías si se especifica
     if categories_filter:
-        print(f"🎯 Filtrando categorías: {', '.join(categories_filter)}")
+        if VERBOSE_LOGGING: print(f"🎯 Filtrando categorías: {', '.join(categories_filter)}")
         
-        # Verificar que las categorías especificadas existen
         available_categories = list(mutation_manager.categories.keys())
         invalid_categories = [cat for cat in categories_filter if cat not in available_categories]
         
@@ -214,9 +212,14 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
     analyzer = MusicAnalyzer(config=MUTTS_ANALYSIS_CONFIG)    # Usar configuración personalizada
     mutations_base_dir = results_dir / f"{midi_name}_Mutaciones"
     
-    for category_name, mutation_name, mutation, audio_path, original_excerpt in tqdm(successful_mutations, 
-                                                                   desc="Analizando mutaciones"):
+    # Usar tqdm con descripción dinámica
+    progress_bar = tqdm(successful_mutations, desc=f"Iniciando análisis de {midi_name}", unit="mutación", dynamic_ncols=True, ascii=True)
+    
+    for category_name, mutation_name, mutation, audio_path, original_excerpt in progress_bar:
         try:
+            # Actualizar descripción de la barra de progreso
+            progress_bar.set_description(f"{midi_name}: Analizando {mutation_name}")
+            
             # Crear nombre único para cada análisis individual según especificación: MIDI_NAME_mutation_name
             analysis_name = f"{midi_name}_{mutation_name}"
             
@@ -254,22 +257,25 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
                 }
                 
                 csv_data.append(csv_row)
+                # Actualizar postfix con información del análisis actual
+                progress_bar.set_postfix_str(f"✅ {category_name}")
             else:
-                print(f"⚠️ No se obtuvieron resultados DTW para {category_name}.{mutation_name}")
+                progress_bar.set_postfix_str(f"⚠️ Sin resultados DTW")
 
                 
         except Exception as e:
-            print(f"❌ Error analizando {category_name}.{mutation_name}: {e}")
-            # Print traceback para depuración
-            import traceback
-            traceback.print_exc()
-            # Agregar una fila con datos mínimos para no perder la información
+            progress_bar.set_postfix_str(f"❌ Error: {str(e)}")
             csv_data.append({
                 'mutation_category': category_name,
                 'mutation_name': mutation_name,
                 'error': str(e),                'audio_file_path': str(audio_path),
                 'reference_audio_path': str(reference_audio_path)
             })    # Guardar resultados consolidados en directorio del MIDI de referencia
+    
+    # Cerrar la barra de progreso con mensaje final
+    progress_bar.set_description("Análisis completado")
+    progress_bar.close()
+    
     if csv_data:
         # Crear directorio para el conjunto de mutaciones usando NOMBRE_REFERENCIA_MUTACION
         mutations_summary_dir = results_dir / f"{midi_name}_Mutaciones"
@@ -278,89 +284,9 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
         # Guardar CSV consolidado con resumen de todas las mutaciones
         csv_file = mutations_summary_dir / "mutations_summary.csv"
         save_analysis_results_to_csv(csv_data, csv_file)
-        
-        # Crear reporte de resumen en texto
-        summary_report_path = mutations_summary_dir / "summary_report.txt"
-        _create_mutations_summary_report(csv_data, midi_name, summary_report_path)
 
 
-def _create_mutations_summary_report(csv_data: List[Dict[str, Any]], midi_name: str, 
-                                    report_path: Path) -> None:
-    """
-    Crea un reporte resumen de todas las mutaciones aplicadas.
-    
-    Args:
-        csv_data: Datos de análisis consolidados
-        midi_name: Nombre del archivo MIDI de referencia
-        report_path: Ruta donde guardar el reporte
-    """
-    from datetime import datetime
-    
-    # Estadísticas generales
-    total_mutations = len(csv_data)
-    successful_analyses = len([d for d in csv_data if 'error' not in d])
-    failed_analyses = total_mutations - successful_analyses
-    
-    # Agrupar por categorías
-    categories = {}
-    for data in csv_data:
-        cat = data.get('mutation_category', 'unknown')
-        if cat not in categories:
-            categories[cat] = []
-        categories[cat].append(data)
-    
-    # Crear reporte
-    report_content = f"""
-REPORTE DE MUTACIONES - METRONIA
-{'=' * 50}
-Archivo de referencia: {midi_name}
-Fecha de análisis: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-RESUMEN GENERAL:
-- Total de mutaciones aplicadas: {total_mutations}
-- Análisis exitosos: {successful_analyses}
-- Análisis fallidos: {failed_analyses}
-
-DISTRIBUCIÓN POR CATEGORÍAS:
-"""
-    
-    for category, data_list in categories.items():
-        successful_in_cat = len([d for d in data_list if 'error' not in d])
-        report_content += f"- {category}: {len(data_list)} mutaciones ({successful_in_cat} exitosas)\n"
-    
-    # Estadísticas de tempo si están disponibles
-    tempo_stats = []
-    resampling_count = 0
-    for data in csv_data:
-        if 'error' not in data and 'tempo_proportion' in data:
-            try:
-                proportion = float(data['tempo_proportion'])
-                tempo_stats.append(proportion)
-                if data.get('resampling_applied', False):
-                    resampling_count += 1
-            except (ValueError, KeyError):
-                pass
-    
-    if tempo_stats:
-        avg_proportion = sum(tempo_stats) / len(tempo_stats)
-        min_proportion = min(tempo_stats)
-        max_proportion = max(tempo_stats)
-        
-        report_content += f"""ESTADÍSTICAS DE TEMPO:
-- Proporción promedio (live/ref): {avg_proportion:.3f}
-- Proporción mínima: {min_proportion:.3f}
-- Proporción máxima: {max_proportion:.3f}
-- Análisis con re-sampling aplicado: {resampling_count}/{len(tempo_stats)}
-"""
-        
-    # Guardar reporte
-    with open(report_path, 'w', encoding='utf-8') as f:
-        f.write(report_content)
-    
-    print(f"✅ Reporte de resumen guardado: {report_path}")
-
-def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "results", 
-                           categories_filter: Optional[List[str]] = None):
+def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str = "results") -> Dict[str, float]:
     """
     Pipeline completo para generar mutaciones y analizar interpretaciones.
     
@@ -368,6 +294,9 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
         midi_file_path: Ruta al archivo MIDI de referencia
         output_base_dir: Directorio base para guardar resultados
         categories_filter: Lista de categorías específicas a aplicar. Si es None, aplica todas.
+        
+    Returns:
+        Dict con las métricas de validación
     """
     
     # Configuración
@@ -377,19 +306,19 @@ def create_mutation_pipeline(midi_file_path: str, output_base_dir: str = "result
     results_dir.mkdir(exist_ok=True)
     
     reference_audio_path = midi_name+"_reference"
-    audio_result = obtener_audio_de_midi(midi_file_path, reference_audio_path)
-    if audio_result is None:
-        print(f"❌ Error: obtener_audio_de_midi no pudo procesar el archivo {midi_file_path}.")
-        return
-    original_excerpt, base_tempo, reference_audio_path = audio_result
+    original_excerpt, base_tempo, reference_audio_path = obtener_audio_de_midi(midi_file_path, midi_name)
 
-    mutation_manager = filtrar_mutaciones(categories_filter)
+    if original_excerpt is None:
+        print(f"❌ Error: obtener_audio_de_midi no pudo procesar el archivo {midi_file_path}.")
+        return {}
 
     successful_mutations = aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name, results_dir)
     
     analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, midi_name, results_dir)
     
-    # run_validation_analysis(midi_name, results_dir)
+    # Ejecutar validación de los resultados y retornar métricas
+    validation_metrics = run_validation_analysis(midi_name, results_dir)
+    return validation_metrics
 
 def listar_categorias():
     print("📋 CATEGORÍAS DE MUTACIONES DISPONIBLES:")
@@ -403,64 +332,6 @@ def listar_categorias():
             print(f"     - {mutation_name}")
     print("\n💡 Usa --categories seguido de los nombres para filtrar.")
     print("💡 Ejemplo: --categories timing_errors tempo_errors")
-
-def run_validation_analysis(midi_name: str, results_dir: Path) -> None:
-    """
-    Ejecuta el análisis de validación para todas las mutaciones de un MIDI.
-    
-    Args:
-        midi_name: Nombre del archivo MIDI de referencia
-        results_dir: Directorio de resultados
-    """
-    print("\n" + "="*60)
-    print("🔍 ANÁLISIS DE VALIDACIÓN DEL ANALIZADOR")
-    print("="*60)
-    
-    # Crear analizador de validación
-    validator = MutationValidationAnalyzer(str(results_dir))
-    
-    # Ejecutar validación global
-    validation_result = validator.validate_all_mutations(midi_name)
-    
-    if not validation_result:
-        print("⚠️ No se pudo ejecutar la validación - revisa que existan los archivos necesarios")
-        return
-      # Crear directorio de validación dentro del directorio de mutaciones
-    validation_dir = results_dir / f"{midi_name}_Mutaciones" / "validation"
-    validation_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generar matriz de confusión
-    confusion_matrix_path = validation_dir / "confusion_matrix.png"
-    validator.plot_confusion_matrix(validation_result, str(confusion_matrix_path))
-    
-    # Generar reporte de validación
-    validation_report_path = validation_dir / "validation_report.txt"
-    validator.generate_validation_report(validation_result, str(validation_report_path))
-    
-    # Guardar CSV con resultados detallados
-    validation_csv_path = validation_dir / "validation_results.csv"
-    validator.save_validation_results_csv(validation_result, str(validation_csv_path))
-    
-    # Mostrar resumen en consola
-    print(f"\n📊 RESUMEN DE VALIDACIÓN - {midi_name}")
-    print(f"   Total mutaciones analizadas: {validation_result.total_mutations}")
-    print(f"   Precisión global: {validation_result.overall_precision:.3f}")
-    print(f"   Recall global: {validation_result.overall_recall:.3f}")
-    print(f"   F1-Score global: {validation_result.overall_f1_score:.3f}")
-    print(f"   Exactitud global: {validation_result.overall_accuracy:.3f}")
-    
-    print(f"\n📁 Archivos de validación generados:")
-    print(f"   - Matriz de confusión: {confusion_matrix_path}")
-    print(f"   - Reporte detallado: {validation_report_path}")
-    print(f"   - Resultados CSV: {validation_csv_path}")
-    
-    # Mostrar rendimiento por categoría
-    print(f"\n📈 RENDIMIENTO POR CATEGORÍA:")
-    for category, metrics in validation_result.category_performance.items():
-        print(f"   {category}: F1={metrics['f1_score']:.3f}, "
-              f"Precisión={metrics['precision']:.3f}, "
-              f"Recall={metrics['recall']:.3f} "
-              f"({metrics['mutations_count']} mutaciones)")
 
 def get_midi_files_from_directory(directory_path: str) -> List[str]:
     """
@@ -510,13 +381,15 @@ def main():
     if args.list_categories:
         listar_categorias()
         return
-
+    
     midi_files_to_process = get_midi_files_to_process(args)
+    if not midi_files_to_process:
+        return
+        
     print("=" * 90)
     print("🎵 Mutaciones de MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios")
     print("=" * 90)
 
-    # Mostrar configuración general
     print("\n🎵 CONFIGURACIÓN GENERAL DEL PIPELINE:")
     print(f"  📁 Directorio salida: {args.output}")
     if args.categories:
@@ -524,29 +397,58 @@ def main():
     else:
         print(f"  🎯 Categorías: Todas (sin filtro)")
 
-    # Ejecutar pipeline para cada archivo MIDI
-    for midi_file_path in midi_files_to_process:
-        try:
-            print("\n" + "="*50)
-            print(f"▶️  Procesando archivo: {midi_file_path}")
-            print("="*50)
+    print("=" * 90)
+
+    all_validation_metrics = []  # Lista para almacenar métricas de validación de todos los archivos
+    processed_files = []  # Lista para almacenar los archivos procesados exitosamente
+
+    mutation_manager = filtrar_mutaciones(args.categories)
+    
+    # Crear barra de progreso para procesar múltiples archivos MIDI
+    midi_progress = tqdm(midi_files_to_process, desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
+    
+    for midi_file_path in midi_progress:
+        try:            
+            # # Obtener solo el nombre del archivo para mostrar en la barra
+            midi_filename = Path(midi_file_path).name
+            midi_progress.set_description(f"Procesando {midi_filename}")
             
-            create_mutation_pipeline(
+            validation_metrics = create_mutation_pipeline(
+                mutation_manager=mutation_manager,
                 midi_file_path=midi_file_path,
-                output_base_dir=args.output,
-                categories_filter=args.categories
+                output_base_dir=args.output
             )
             
-        except KeyboardInterrupt:
-            print(f"[X] Pipeline interrumpido por el usuario.")
-            break  # Salir del bucle si el usuario interrumpe
+            if validation_metrics:
+                all_validation_metrics.append(validation_metrics)
+                processed_files.append(midi_file_path)
+            else:
+                tqdm.write(f"⚠️ {midi_filename} sin métricas")
             
+        except KeyboardInterrupt:
+            tqdm.write(f"[X] Pipeline interrumpido por el usuario.")
+            break 
+        
         except Exception as e:
-            print(f"\n❌ Error procesando {midi_file_path}: {e}")
+            tqdm.write(f"\n❌ Error procesando {midi_filename}: {e}")
+            midi_progress.set_postfix_str(f"❌ Error")
             import traceback
             traceback.print_exc()
     
-    print("\n✅ Pipeline completado para todos los archivos.")
+    # Cerrar la barra de progreso
+    midi_progress.close()
+    
+    if processed_files:
+        tqdm.write(f"✅ Pipeline de mutaciones completado exitosamente para {len(processed_files)} archivos")
+        
+    # Generar reporte promedio de validación si se procesaron múltiples archivos
+    if len(midi_files_to_process) > 1:
+        generate_average_validation_report(
+            all_validation_metrics, 
+            processed_files,
+            args.categories,
+            args.output
+        )
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Optional
-from .changes import NoteMutationDetail, TempoMutationDetail
+from .changes import NoteMutationDetail, TempoMutationDetail, ArticulationMutationDetail
 
 from mdtk.degradations import (
     pitch_shift,
@@ -45,8 +45,7 @@ VERBOSE = False
 
 def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
     logs = []
-    # For tempo mutations, the log is global, not per-note
-    if isinstance(mutation_log, TempoMutationDetail):
+    if isinstance(mutation_log, TempoMutationDetail) or isinstance(mutation_log, ArticulationMutationDetail):
         logs.append(mutation_log)
         return logs
 
@@ -157,19 +156,19 @@ def note_not_expected_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=M
 # articulated_legato. All the notes are smoothly connected
 def articulated_legato_mutation(excerpt, max_gap=ARTICULATED_LEGATO["max_gap"], max_notes=ARTICULATED_LEGATO["max_notes"]):
     mutation =  join_notes(excerpt, max_gap=max_gap, max_notes=max_notes, only_first=True, seed=SEED)
-    log = NoteMutationDetail(change_type="articulation", onset_timestamp=0.0, pitch=0) 
+    log = ArticulationMutationDetail(change_type="articulation", articulation="legato") 
     return mutation, get_mutation_log(mutation, log)
 
 # articulated_staccato. All the notes are silenced before playing the next one
 def articulated_staccato_mutation(excerpt, gap=ARTICULATED_STACCATO):
     mutation =  articulated_staccato(excerpt, gap)
-    log = NoteMutationDetail(change_type="articulation", onset_timestamp=0.0, pitch=0) 
+    log = ArticulationMutationDetail(change_type="articulation", articulation="staccato") 
     return mutation, get_mutation_log(mutation, log)
 
 # articulated_accentuated. A note is played more intensely than others
 def articulated_accentuated_mutation(excerpt, boost=ARTICULATED_ACCENTUATED):
     mutation = articulated_accentuated(excerpt, boost=boost)
-    log = NoteMutationDetail(change_type="articulation", onset_timestamp=0.0, pitch=0) 
+    log = ArticulationMutationDetail(change_type="articulation", articulation="accentuated") 
     return mutation, get_mutation_log(mutation, log)
 
 # tempo_fluctuation. Tempo changes for no reason without a pattern

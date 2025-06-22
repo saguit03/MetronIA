@@ -35,6 +35,14 @@ class TempoMutationDetail(NamedTuple):
     change_type: ChangeType
     factor: float = None
 
+class ArticulationMutationDetail(NamedTuple):
+    """
+    Representa un cambio de articulación aplicado durante una mutación.
+    - change_type: El tipo de cambio (del Enum ChangeType).
+    """
+    change_type: ChangeType
+    articulation: str = None
+
 def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
     """
     Guarda una lista de logs de mutación en un archivo CSV.
@@ -52,6 +60,8 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
         print("⚠️ No hay logs de mutación para guardar.")
         return
     
+    timestamps = False
+    
     df = pd.DataFrame()
     for i, log in enumerate(logs):
         if isinstance(log, NoteMutationDetail):
@@ -62,12 +72,21 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
                 'pitch': [log.pitch],
             })
             df = pd.concat([df, aux], ignore_index=True)
-            # print(f"Log {i}: {log.change_type} at {log.onset_timestamp}, pitch: {log.pitch}")
+            timestamps = True
         elif isinstance(log, TempoMutationDetail):
-            df.insert(i, log.change_type, log.factor)
-            # print(f"Log {i}: {log.change_type} with factor {log.factor}")
+            aux = pd.DataFrame({
+                'onset_type': [log.change_type],
+                'factor': [log.factor],
+            })
+            df = pd.concat([df, aux], ignore_index=True)
+        elif isinstance(log, ArticulationMutationDetail):
+            aux = pd.DataFrame({
+                'onset_type': [log.change_type],
+                'articulation': [log.articulation],
+            })
+            df = pd.concat([df, aux], ignore_index=True)
 
-    if df.size > 1:
+    if timestamps:
         df.sort_values(by='onset_time', inplace=True)
         
     logs_dir = Path(save_dir) / "logs"

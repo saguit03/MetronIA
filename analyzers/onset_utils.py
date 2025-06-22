@@ -6,7 +6,7 @@ import numpy as np
 import librosa
 from typing import Tuple, Optional, List, Dict
 from scipy.spatial.distance import cdist
-from .config import AudioAnalysisConfig
+from .config import VERBOSE_LOGGING, AudioAnalysisConfig
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatch
 from pathlib import Path
 import pandas as pd
@@ -126,17 +126,17 @@ class OnsetUtils:
         
         # Calcular diferencia en semitonos
         semitone_diff = abs(midi1 - midi2)
-        
-        # Similitud exponencial decreciente
+          # Similitud exponencial decreciente
         if semitone_diff > max_diff_semitones:
             return 0.0
         
         similarity = np.exp(-semitone_diff / max_diff_semitones)
         return similarity
 
-       
-    def save_onsets_analysis_to_csv(self, dtw_onset_result: OnsetDTWAnalysisResult, 
-                                   save_name: str, dir_path: Optional[str] = None) -> None:
+    @staticmethod
+    def save_onsets_analysis_to_csv(dtw_onset_result: OnsetDTWAnalysisResult, 
+                                   save_name: str, dir_path: Optional[str] = None,
+                                   progress_bar=None) -> None:
         """
         Guarda el análisis detallado de onsets en un archivo CSV.
         
@@ -221,14 +221,15 @@ class OnsetUtils:
         )
         
         # Guardar CSV
-        df_sorted.to_csv(csv_filename, index=False, encoding='utf-8')        
-        print(f"💾 Análisis de onsets guardado en: {csv_filename}")
-        print(f"   📊 Total de onsets analizados: {len(df_sorted)}")
-        print(f"   ✅ Correctos: {len(df_sorted[df_sorted['onset_type'] == 'correct'])}")
-        print(f"   ⏰ Tarde: {len(df_sorted[df_sorted['onset_type'] == 'late'])}")
-        print(f"   ⚡ Adelantado: {len(df_sorted[df_sorted['onset_type'] == 'early'])}")
-        print(f"   ❌ Perdidos: {len(df_sorted[df_sorted['onset_type'] == 'missing'])}")
-        print(f"   ➕ Extra: {len(df_sorted[df_sorted['onset_type'] == 'extra'])}")
+        df_sorted.to_csv(csv_filename, index=False, encoding='utf-8')
+        if VERBOSE_LOGGING:
+            print(f"💾 Análisis de onsets guardado en: {csv_filename}")
+            print(f"   📊 Total de onsets analizados: {len(df_sorted)}")
+            print(f"   ✅ Correctos: {len(df_sorted[df_sorted['onset_type'] == 'correct'])}")
+            print(f"   ⏰ Tarde: {len(df_sorted[df_sorted['onset_type'] == 'late'])}")
+            print(f"   ⚡ Adelantado: {len(df_sorted[df_sorted['onset_type'] == 'early'])}")
+            print(f"   ❌ Perdidos: {len(df_sorted[df_sorted['onset_type'] == 'missing'])}")
+            print(f"   ➕ Extra: {len(df_sorted[df_sorted['onset_type'] == 'extra'])}")
     
     @staticmethod
     def normalize_onsets_to_zero(onsets: np.ndarray) -> np.ndarray:

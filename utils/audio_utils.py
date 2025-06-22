@@ -5,6 +5,7 @@ import librosa
 import pyrubberband.pyrb as pyrb
 import scipy.io.wavfile as wavfile
 from pathlib import Path
+import pandas as pd
 # Importación movida dentro de la función para evitar dependencia circular
 
 def check_extension(file_path: str, midi_name) -> str:
@@ -97,7 +98,6 @@ def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_l
     return aligned
 
 def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
-    # Importar aquí para evitar dependencia circular
     from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
     
     try:
@@ -128,6 +128,56 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
     
     return original_excerpt, base_tempo, reference_audio_path
 
+
+def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
+    """
+    Obtiene la duración en segundos del audio de referencia.
+    
+    Args:
+        midi_name: Nombre del archivo MIDI (sin extensión)
+        output_dir: Directorio base de resultados
+        
+    Returns:
+        Duración en segundos del audio, o 0.0 si no se puede obtener
+    """
+    try:
+        # Buscar el archivo de audio de referencia en diferentes ubicaciones posibles
+        audio_paths = [
+            Path(output_dir) / f"{midi_name}_reference.wav",
+            Path("audio") / f"{midi_name}_reference.wav",
+            Path("aligned") / f"{midi_name}_reference.wav",
+            # También buscar en el directorio de mutaciones
+            Path(output_dir) / f"{midi_name}_Mutaciones" / f"{midi_name}_reference.wav"
+        ]
+        
+        for audio_path in audio_paths:
+            if audio_path.exists():
+                # Cargar solo los metadatos para obtener la duración sin cargar todo el audio
+                duration = librosa.get_duration(path=str(audio_path))
+                return duration
+        
+        # Si no encontramos el archivo de referencia, intentar obtener duración de cualquier análisis
+        mutations_dir = Path(output_dir) / f"{midi_name}_Mutaciones"
+        if mutations_dir.exists():
+            # Buscar cualquier archivo de análisis CSV para obtener información temporal
+            for analysis_dir in mutations_dir.iterdir():
+                if analysis_dir.is_dir():
+                    analysis_csv = analysis_dir / "analysis.csv"
+                    if analysis_csv.exists():
+                        df = pd.read_csv(analysis_csv)
+                        if not df.empty and 'ref_onset_time' in df.columns:
+                            # Estimar duración basada en el último onset + margen
+                            max_onset = df['ref_onset_time'].max()
+                            if pd.notna(max_onset):
+                                return float(max_onset + 1.0)  # +1 segundo como margen
+        
+        print(f"⚠️ No se pudo obtener la duración para {midi_name}")
+        return 0.0
+        
+    except Exception as e:
+        print(f"⚠️ Error obteniendo duración para {midi_name}: {e}")
+        return 0.0
+    
 def ejemplo():
     hop_length = 1024
     x_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
