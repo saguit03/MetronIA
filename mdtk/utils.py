@@ -146,11 +146,14 @@ def plot_against_orig(orig_excerpt, list_of_diff_excerpts):
     plt.sca(ax[0])
     plot_from_df(orig_excerpt, alpha=0.3)
     plt.title("original")
+    
     for ii in range(nr_diffs):
         plt.sca(ax[ii + 1])
         plot_from_df(orig_excerpt, alpha=0.3)
         plot_from_df(list_of_diff_excerpts[ii])
         plt.title(f"deg {ii+1}")
+    
+    plt.close(fig)
 
 
 # Synthesis ===================================================================

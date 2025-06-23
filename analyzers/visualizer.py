@@ -20,7 +20,7 @@ class AudioVisualizer:
         self.config = config
     
     def plot_beat_spectrum_comparison(self, result: BeatSpectrumResult, sr: int, 
-                                    save_name: Optional[str] = None, dir_path: Optional[str] = "results", show: bool = False) -> Optional[plt.Figure]:
+                                    save_name: Optional[str] = None, dir_path: Optional[str] = "results") -> Optional[plt.Figure]:
         """Plotea comparación de beat spectrums."""
         times = np.arange(1, len(result.beat_ref) + 1) * self.config.hop_length / sr
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -38,15 +38,10 @@ class AudioVisualizer:
             plots_dir.mkdir(parents=True, exist_ok=True)
             fig_path = plots_dir / f"{save_name}.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
-        
-        if show:
-            plt.show()
-        else:
-            plt.close()
-        return fig if not show else None
-    
+        plt.close(fig)
+            
     def plot_timeline_onset_errors_detailed(self, result: OnsetDTWAnalysisResult,
-                                  save_name: Optional[str] = None, dir_path: Optional[str] = "results", show: bool = False) -> Optional[plt.Figure]:
+                                  save_name: Optional[str] = None, dir_path: Optional[str] = "results") -> Optional[plt.Figure]:
         """Plotea análisis detallado de errores de onsets."""
         fig, ax = plt.subplots(figsize=(14, 3))
         
@@ -60,13 +55,12 @@ class AudioVisualizer:
         early_live_onsets = [m.live_onset for m in result.matches if m.classification.value == 'early']
         late_live_onsets = [m.live_onset for m in result.matches if m.classification.value == 'late']
         extra_live_onsets = [live_time for live_time, _ in result.extra_onsets]
-        
-        # Plotear
+          # Plotear
         ax.vlines(all_ref_onsets, 0.8, 1.0, color='blue', label='Onsets referencia', linewidth=2)
         ax.vlines(correct_live_onsets, 0.6, 0.8, color='green', 
                  label='Onsets correctos', linewidth=2)
         ax.vlines(early_live_onsets, 0.4, 0.6, color='orange', 
-                 label='Onsets adelantados', linewidth=2)        
+                 label='Onsets adelantados', linewidth=2)
         ax.vlines(late_live_onsets, 0.2, 0.4, color='purple', 
                  label='Onsets atrasados', linewidth=2)
         ax.vlines(ref_onsets_from_missing, 0.0, 0.2, color='black', label='Notas faltantes', linewidth=2)
@@ -85,10 +79,5 @@ class AudioVisualizer:
             plots_dir.mkdir(parents=True, exist_ok=True)
             fig_path = plots_dir / f"{save_name}.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
-            
-        if show:
-            plt.show()
-        else:
-            plt.close()
-        
-        return fig if not show else None
+
+        return fig, ax

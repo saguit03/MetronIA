@@ -8,8 +8,7 @@ import pandas as pd
 import pyrubberband.pyrb as pyrb
 import scipy.io.wavfile as wavfile
 
-
-# Importación movida dentro de la función para evitar dependencia circular
+N_ARROWS = 10  # Número de flechas para la visualización
 
 def check_extension(file_path: str, midi_name) -> str:
     if Path(file_path).suffix.lower() == '.mid':
@@ -47,30 +46,21 @@ def sinc(x, wp_s, sample_rate, out_len, n_arrows):
 
 
 def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
-    # Convertimos wp_s a muestras
-    raw_map = [(int(t1 * sample_rate), int(t2 * sample_rate)) for t1, t2 in wp_s // n_arrows]
+    #raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::len(wp_s) // n_arrows]]
+    raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::n_arrows]]
 
-    # Ordenamos por tiempo de entrada
     raw_map.sort(key=lambda pair: pair[0])
+    raw_map.append((len(x), out_len))
 
     time_map = []
     last_in, last_out = -1, -1
     for t_in, t_out in raw_map:
-        # Aseguramos que ambos tiempos crezcan estrictamente
         if t_in > last_in and t_out > last_out:
             time_map.append((t_in, t_out))
             last_in, last_out = t_in, t_out
+        elif t_in == last_in or t_out == last_out:
+            time_map[-1] = (t_in, t_out)
 
-    final_point = (len(x), out_len)
-    if time_map and time_map[-1][0] >= final_point[0]:
-        # Reemplazar último punto si ya pasó el final
-        time_map[-1] = final_point
-    else:
-        time_map.append(final_point)
-
-    for i in range(1, len(time_map)):
-        if time_map[i][0] <= time_map[i - 1][0] or time_map[i][1] <= time_map[i - 1][1]:
-            print(f"Error at {i}: {time_map[i - 1]} -> {time_map[i]}")
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
 
@@ -96,7 +86,7 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     return output_filename
 
 
-def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows=50,
+def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows=N_ARROWS,
                   save_name="aligned", save_dir: Optional[str] = "aligned"):
     if save_dir is None:
         save_dir = "aligned"
@@ -109,7 +99,6 @@ def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_l
 def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
     from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, \
         extract_tempo_from_midi
-
     try:
         original_excerpt = load_midi_with_pretty_midi(midi_file_path)
         if verbose: print("✅ Archivo MIDI cargado exitosamente con pretty_midi")
@@ -152,37 +141,11 @@ def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
     """
     try:
         # Buscar el archivo de audio de referencia en diferentes ubicaciones posibles
-        audio_paths = [
-            Path(output_dir) / f"{midi_name}_reference.wav",
-            Path("audio") / f"{midi_name}_reference.wav",
-            Path("aligned") / f"{midi_name}_reference.wav",
-            # También buscar en el directorio de mutaciones
-            Path(output_dir) / f"{midi_name}_Mutaciones" / f"{midi_name}_reference.wav"
-        ]
+        audio_path = Path("mutts") / f"{midi_name}" / "audios" / f"{midi_name}.wav"
 
-        for audio_path in audio_paths:
-            if audio_path.exists():
-                # Cargar solo los metadatos para obtener la duración sin cargar todo el audio
-                duration = librosa.get_duration(path=str(audio_path))
-                return duration
-
-        # Si no encontramos el archivo de referencia, intentar obtener duración de cualquier análisis
-        mutations_dir = Path(output_dir) / f"{midi_name}_Mutaciones"
-        if mutations_dir.exists():
-            # Buscar cualquier archivo de análisis CSV para obtener información temporal
-            for analysis_dir in mutations_dir.iterdir():
-                if analysis_dir.is_dir():
-                    analysis_csv = analysis_dir / "analysis.csv"
-                    if analysis_csv.exists():
-                        df = pd.read_csv(analysis_csv)
-                        if not df.empty and 'ref_onset_time' in df.columns:
-                            # Estimar duración basada en el último onset + margen
-                            max_onset = df['ref_onset_time'].max()
-                            if pd.notna(max_onset):
-                                return float(max_onset + 1.0)  # +1 segundo como margen
-
-        print(f"⚠️ No se pudo obtener la duración para {midi_name}")
-        return 0.0
+        if audio_path.exists():
+            duration = librosa.get_duration(path=str(audio_path))
+            return round(duration, 4)
 
     except Exception as e:
         print(f"⚠️ Error obteniendo duración para {midi_name}: {e}")

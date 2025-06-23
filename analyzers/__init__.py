@@ -19,7 +19,6 @@ from .config import AudioAnalysisConfig
 from .dtw_aligner import DTWAligner
 from .feature_extractor import AudioFeatureExtractor
 from .music_analyzer import MusicAnalyzer
-from .music_analyzer import analyze_performance
 from .onset_dtw_analyzer import OnsetDTWAnalyzer
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatch
 from .result_visualizer import ResultVisualizer
@@ -41,5 +40,4 @@ __all__ = [
     'AudioVisualizer',
     'ResultVisualizer',
     'MusicAnalyzer',
-    'analyze_performance'
 ]

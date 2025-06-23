@@ -29,8 +29,7 @@ class ResultVisualizer:
     
     def plot_onset_errors_detailed(self, dtw_onset_result: OnsetDTWAnalysisResult, 
                                   save_name: str, 
-                                  dir_path: Optional[str] = None,
-                                  show_plot: bool = False) -> str:
+                                  dir_path: Optional[str] = None) -> str:
         """
         Crea un gráfico detallado de los errores de onset DTW.
         
@@ -38,7 +37,6 @@ class ResultVisualizer:
             dtw_onset_result: Resultado del análisis DTW
             save_name: Nombre base para guardar el archivo
             dir_path: Directorio donde guardar el archivo (opcional)
-            show_plot: Si mostrar el gráfico en pantalla
             
         Returns:
             Ruta del archivo guardado
@@ -103,7 +101,6 @@ class ResultVisualizer:
         
         plt.tight_layout()
         
-        # Guardar en el directorio especificado o usar el por defecto
         if dir_path:
             output_dir = Path(dir_path)
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -112,10 +109,6 @@ class ResultVisualizer:
             output_path = self.output_dir / f"{save_name}.png"
         
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        
-        if show_plot:
-            plt.show()
-        else:
-            plt.close()
+        plt.close(fig)
         
         return str(output_path)

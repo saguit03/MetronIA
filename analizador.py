@@ -20,11 +20,15 @@ Ejemplos:
 
 import os
 import sys
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+import matplotlib
+
 from analyzers import MusicAnalyzer
+# from analyzers.timeline import play_audio
 
 
 def validate_arguments() -> tuple[str, str, Optional[str]]:
@@ -222,15 +226,20 @@ def move_plots_to_analysis_directory(analysis_name: str, analysis_dir: Path):
 
 def main():
     """Función principal del analizador."""
+    # Configurar matplotlib para evitar warnings de figuras abiertas
+    matplotlib.rcParams['figure.max_open_warning'] = 0
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='More than 20 figures have been opened')
 
     print("=" * 70)
     print("🎵 MetronIA - Análisis de Sincronía de ritmos en audios")
     print("=" * 70)
 
     ref_path, live_path, analysis_name = validate_arguments()
-
+    
     analysis_result = analyze_audio_files(ref_path, live_path, analysis_name)
 
+    # Note: fig and ax are no longer returned to prevent memory leaks
+    # play_audio(ref_path, analysis_result['fig'], analysis_result['ax'])
 
 if __name__ == "__main__":
     main()

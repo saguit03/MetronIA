@@ -28,7 +28,7 @@ class OnsetUtils:
             Array de onsets únicos ordenados
         """
         # Detectar onsets con librosa
-        onsets = librosa.onset.onset_detect(y=audio, sr=sr, units='time')
+        onsets = librosa.onset.onset_detect(y=audio, sr=sr, units='time') # TODO añadir bpm
         
         # Verificar si se detectaron onsets
         if onsets is None or len(onsets) == 0:
@@ -136,22 +136,25 @@ class OnsetUtils:
         return similarity
 
     @staticmethod
-    def save_onsets_analysis_to_csv(dtw_onset_result: OnsetDTWAnalysisResult, 
-                                   save_name: str, dir_path: Optional[str] = None,
-                                   progress_bar=None) -> None:
+    def save_onsets_analysis_to_csv(dtw_onset_result: OnsetDTWAnalysisResult,                                   save_name: str, dir_path: Optional[str] = None,
+                                   progress_bar=None, mutation_name: Optional[str] = None) -> None:
         """
         Guarda el análisis detallado de onsets en un archivo CSV.
         
         Args:
             dtw_onset_result: Resultado del análisis DTW de onsets
             save_name: Nombre base para el archivo
-            reference_path: Ruta del archivo de referencia (opcional)
+            dir_path: Directorio donde guardar el archivo (opcional)
+            progress_bar: Barra de progreso (opcional)
+            mutation_name: Nombre de la mutación para nombrar el archivo (opcional)
         """
         # Crear directorio de resultados si no existe
         results_dir = Path(dir_path if dir_path else "results")
         results_dir.mkdir(parents=True, exist_ok=True)
-          # Nombre del archivo CSV
-        if save_name:
+          # Nombre del archivo CSV - usar mutation_name_analysis.csv si está disponible
+        if mutation_name:
+            csv_filename = results_dir / f"{mutation_name}_analysis.csv"
+        elif save_name:
             csv_filename = results_dir / f"{save_name}.csv"
         else:
             csv_filename = results_dir / "analysis.csv"

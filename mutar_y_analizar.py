@@ -14,26 +14,22 @@ automáticamente por MusicAnalyzer. Este script solo crea un resumen consolidado
 
 import argparse
 import os
+import warnings
 from pathlib import Path
 from typing import Dict, Any, List
 
+import matplotlib
 import pandas as pd
 from tqdm import tqdm
 
 from analyzers import MusicAnalyzer
-from analyzers.config import AudioAnalysisConfig, VERBOSE_LOGGING
+from analyzers.config import VERBOSE_LOGGING
 from mutations.manager import MutationManager
 from mutations.midi_utils import save_mutation_complete
-from mutations.validator import run_validation_analysis, generate_average_validation_report
+from mutations.validator import run_validation_analysis, generate_average_validation_report, generate_category_validation_reports
 from utils.audio_utils import obtener_audio_de_midi
 
-MUTTS_ANALYSIS_CONFIG = AudioAnalysisConfig(
-    hop_length=1024,
-    onset_margin=0.005,
-    tempo_threshold=5.0,
-    dtw_tolerance=0.03,
-    tolerance_ms=0.01
-)
+DEBUG = False
 
 EPILOG = """Ejemplos de uso:
   # Aplicar todas las mutaciones (comportamiento por defecto)
@@ -215,10 +211,9 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
         results_dir: Directorio de resultados base
     """
     csv_data = []
-    analyzer = MusicAnalyzer(config=MUTTS_ANALYSIS_CONFIG)  # Usar configuración personalizada
+    analyzer = MusicAnalyzer() 
     mutations_base_dir = results_dir / f"{midi_name}_Mutaciones"
 
-    # Usar tqdm con descripción dinámica
     progress_bar = tqdm(successful_mutations, desc=f"Iniciando análisis de {midi_name}", unit="mutación",
                         dynamic_ncols=True, ascii=True)
 
@@ -232,14 +227,14 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
 
             # Crear directorio específico para este análisis dentro del directorio de mutaciones
             analysis_dir = mutations_base_dir / analysis_name
-            analysis_dir.mkdir(parents=True, exist_ok=True)
-            # El análisis completo genera CSV y visualizaciones en el directorio específico
+            analysis_dir.mkdir(parents=True, exist_ok=True)            # El análisis completo genera CSV y visualizaciones en el directorio específico
             analysis_result = analyzer.comprehensive_analysis(
                 reference_path=reference_audio_path,
                 live_path=audio_path,
                 save_name=analysis_name,  # Nombre único para cada análisis
                 save_dir=str(analysis_dir),  # Directorio específico donde guardar
                 reference_tempo=base_tempo,
+                mutation_name=mutation_name,  # Nombre de la mutación para el archivo CSV
             )
 
             # Obtener datos básicos para el CSV consolidado (sin duplicar el CSV individual)
@@ -389,11 +384,18 @@ def get_midi_files_to_process(args) -> List[str]:
 
 def main():
     """Función principal del pipeline."""
+    # Configurar matplotlib para evitar warnings de figuras abiertas
+    matplotlib.rcParams['figure.max_open_warning'] = 0
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='More than 20 figures have been opened')
+    
     args = metronia_arg_parser()
 
     if args.list_categories:
         listar_categorias()
         return
+
+    if DEBUG:
+        args.categories = ['timing_errors', 'note_errors']
 
     midi_files_to_process = get_midi_files_to_process(args)
     if not midi_files_to_process:
@@ -412,12 +414,11 @@ def main():
 
     print("=" * 90)
 
-    all_validation_metrics = []  # Lista para almacenar métricas de validación de todos los archivos
-    processed_files = []  # Lista para almacenar los archivos procesados exitosamente
-
+    all_validation_metrics = [] 
+    processed_files = [] 
+    
     mutation_manager = filtrar_mutaciones(args.categories)
 
-    # Crear barra de progreso para procesar múltiples archivos MIDI
     midi_progress = tqdm(midi_files_to_process, desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
 
     for midi_file_path in midi_progress:
@@ -448,15 +449,21 @@ def main():
             import traceback
             traceback.print_exc()
 
-    # Cerrar la barra de progreso
     midi_progress.close()
-
+    
     if processed_files:
         tqdm.write(f"✅ Pipeline de mutaciones completado exitosamente para {len(processed_files)} archivos")
-
-    # Generar reporte promedio de validación si se procesaron múltiples archivos
+    
     if len(midi_files_to_process) > 1:
         generate_average_validation_report(
+            all_validation_metrics,
+            processed_files,
+            args.categories,
+            args.output
+        )
+        
+        # Generar reportes por categoría
+        generate_category_validation_reports(
             all_validation_metrics,
             processed_files,
             args.categories,

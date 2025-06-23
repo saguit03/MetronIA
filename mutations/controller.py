@@ -42,7 +42,6 @@ from .changes import NoteMutationDetail, TempoMutationDetail, ArticulationMutati
 
 VERBOSE = False
 
-
 def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
     logs = []
     if isinstance(mutation_log, TempoMutationDetail) or isinstance(mutation_log, ArticulationMutationDetail):
@@ -64,7 +63,6 @@ def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
             elif isinstance(log, TempoMutationDetail):
                 print(f"Log {i}: {log.change_type} with factor {log.factor}")
     return logs
-
 
 # pitch_shift. Shift the pitch of a note
 def pitch_shift_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=MAX_PITCH_DEFAULT, distribution=None):
