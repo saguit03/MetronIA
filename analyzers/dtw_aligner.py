@@ -2,19 +2,14 @@
 Alineador usando Dynamic Time Warping para análisis musical.
 """
 
-import numpy as np
+from typing import Optional
+
 import librosa
-from typing import Tuple
+import numpy as np
+
 from .config import AudioAnalysisConfig
 from .feature_extractor import AudioFeatureExtractor
 
-import soundfile as sf
-import tempfile
-import os
-from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
-from pydub import AudioSegment
-from pyrubberband import pyrb
 
 class DTWAligner:
     """Alineador usando Dynamic Time Warping."""

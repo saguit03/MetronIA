@@ -3,16 +3,18 @@ Analizador principal de interpretaciones musicales que integra todos los compone
 """
 
 from typing import Optional, Dict, Any
+
+from utils.audio_utils import load_audio_files, stretch_audio, calculate_warping_path
+from .beat_spectrum_analyzer import BeatSpectrumAnalyzer
 from .config import AudioAnalysisConfig, VERBOSE_LOGGING
 from .dtw_aligner import DTWAligner
+from .feature_extractor import AudioFeatureExtractor
 from .onset_dtw_analyzer import OnsetDTWAnalyzer
 from .onset_utils import OnsetUtils
-from .tempo_analyzer import TempoAnalyzer
-from .beat_spectrum_analyzer import BeatSpectrumAnalyzer
-from .visualizer import AudioVisualizer
 from .result_visualizer import ResultVisualizer
-from .feature_extractor import AudioFeatureExtractor
-from utils.audio_utils import load_audio_files, stretch_audio, calculate_warping_path
+from .tempo_analyzer import TempoAnalyzer
+from .visualizer import AudioVisualizer
+
 
 class MusicAnalyzer:
     """Analizador principal de interpretaciones musicales."""

@@ -2,14 +2,14 @@
 Analizador de onsets basado en DTW y altura para emparejamiento preciso.
 """
 
-import numpy as np
-import librosa
 from typing import Tuple, Optional, List, Dict
-from scipy.spatial.distance import cdist
-from scipy.optimize import minimize
+
+import numpy as np
+
 from .config import AudioAnalysisConfig
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
 from .onset_utils import OnsetUtils
+
 
 class OnsetDTWAnalyzer:
     """

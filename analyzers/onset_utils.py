@@ -2,14 +2,16 @@
 Utilidades comunes para análisis de onsets musicales.
 """
 
-import numpy as np
-import librosa
-from typing import Tuple, Optional, List, Dict
-from scipy.spatial.distance import cdist
-from .config import VERBOSE_LOGGING, AudioAnalysisConfig
-from .onset_results import OnsetDTWAnalysisResult, OnsetMatch
 from pathlib import Path
+from typing import Tuple, Optional
+
+import librosa
+import numpy as np
 import pandas as pd
+
+from .config import VERBOSE_LOGGING
+from .onset_results import OnsetDTWAnalysisResult
+
 
 class OnsetUtils:
     """Utilidades comunes para análisis de onsets."""

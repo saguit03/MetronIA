@@ -1,8 +1,10 @@
 from enum import Enum
-from typing import List, Any, NamedTuple
-import pandas as pd
 from pathlib import Path
+from typing import List, Any, NamedTuple
+
 import numpy as np
+import pandas as pd
+
 
 class ChangeType(Enum):
     """
@@ -18,6 +20,7 @@ class ChangeType(Enum):
     ARTICULATION = "articulation"
     NO_CHANGE = "no_change"
 
+
 class NoteMutationDetail(NamedTuple):
     """
     Representa un único cambio atómico aplicado durante una mutación.
@@ -27,6 +30,7 @@ class NoteMutationDetail(NamedTuple):
     onset_timestamp: float = None
     pitch: int = None
 
+
 class TempoMutationDetail(NamedTuple):
     """
     Representa un único cambio atómico aplicado durante una mutación.
@@ -35,6 +39,7 @@ class TempoMutationDetail(NamedTuple):
     change_type: ChangeType
     factor: float = None
 
+
 class ArticulationMutationDetail(NamedTuple):
     """
     Representa un cambio de articulación aplicado durante una mutación.
@@ -42,6 +47,7 @@ class ArticulationMutationDetail(NamedTuple):
     """
     change_type: ChangeType
     articulation: str = None
+
 
 def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
     """
@@ -59,13 +65,13 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
     if not logs:
         print("⚠️ No hay logs de mutación para guardar.")
         return
-    
+
     timestamps = False
-    
+
     df = pd.DataFrame()
     for i, log in enumerate(logs):
         if isinstance(log, NoteMutationDetail):
-            onset = np.round(log.onset_timestamp/1000, 3)
+            onset = np.round(log.onset_timestamp / 1000, 3)
             aux = pd.DataFrame({
                 'onset_type': [log.change_type],
                 'onset_time': [onset],
@@ -88,9 +94,9 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
 
     if timestamps:
         df.sort_values(by='onset_time', inplace=True)
-        
+
     logs_dir = Path(save_dir) / "logs"
     Path(logs_dir).mkdir(parents=True, exist_ok=True)
     csv_path = Path(logs_dir) / f"{save_name}.csv"
     df.to_csv(csv_path, index=False, encoding='utf-8')
-    # print(f"✅ Logs guardados en {csv_path}") 
+    # print(f"✅ Logs guardados en {csv_path}")

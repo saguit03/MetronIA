@@ -2,13 +2,12 @@
 Analizador de beat spectrum para comparación de patrones rítmicos.
 """
 
-import numpy as np
-from .config import AudioAnalysisConfig
-from .results import BeatSpectrumResult
-from .feature_extractor import AudioFeatureExtractor
-import matplotlib.pyplot as plt
 import librosa
-from scipy.spatial.distance import cdist
+import numpy as np
+
+from .config import AudioAnalysisConfig
+from .feature_extractor import AudioFeatureExtractor
+from .results import BeatSpectrumResult
 
 
 class BeatSpectrumAnalyzer:

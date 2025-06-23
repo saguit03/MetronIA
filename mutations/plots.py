@@ -1,11 +1,10 @@
 from pathlib import Path
+
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch, Rectangle
-from matplotlib.collections import PatchCollection
-from matplotlib.ticker import MaxNLocator
 
 from mdtk.utils import plot_from_df
 from mutations.config import MUTATIONS_PLOTS_PATH
+
 
 def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
     """
@@ -25,7 +24,7 @@ def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
     nr_diffs = len(list_of_diff_excerpts)
     fig, ax = plt.subplots(
         1, nr_diffs + 1, figsize=(6 * (nr_diffs + 1), 4), sharex=True, sharey=True
-    )    
+    )
     plt.sca(ax[0])
     plot_from_df(orig_excerpt, alpha=0.3)
     plt.title("original")

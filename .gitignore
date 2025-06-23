@@ -16,6 +16,7 @@ musescore/
 __pycache__/
 *.py[cod]
 *$py.class
+MemoriaTFG/
 
 # C extensions
 *.so

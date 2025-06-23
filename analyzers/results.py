@@ -2,8 +2,10 @@
 Estructuras de datos para resultados de análisis de audio musical.
 """
 
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
+
 
 @dataclass
 class BeatSpectrumResult:

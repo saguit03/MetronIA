@@ -2,13 +2,13 @@
 Visualizador y exportador de resultados del análisis DTW de onsets.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
 from pathlib import Path
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from typing import Optional
+
+import matplotlib.pyplot as plt
+
 from .onset_results import OnsetDTWAnalysisResult
+
 
 class ResultVisualizer:
     """

@@ -2,12 +2,13 @@
 Clases de resultados para el análisis DTW de onsets.
 """
 
-import numpy as np
 import json
-from typing import List, Dict, Any, NamedTuple, Optional
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import List, Dict, Any, NamedTuple
+
+import numpy as np
 
 
 class OnsetType(Enum):

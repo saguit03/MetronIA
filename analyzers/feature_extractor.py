@@ -2,9 +2,10 @@
 Extractor de características de audio para análisis musical.
 """
 
-import numpy as np
 import librosa
+import numpy as np
 from scipy.spatial.distance import cdist
+
 from .config import AudioAnalysisConfig
 
 

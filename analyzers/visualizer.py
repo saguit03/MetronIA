@@ -2,14 +2,16 @@
 Visualizador de análisis de audio musical.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 from .config import AudioAnalysisConfig
-from .results import BeatSpectrumResult
 from .onset_results import OnsetDTWAnalysisResult
+from .results import BeatSpectrumResult
+
 
 class AudioVisualizer:
     """Visualizador de análisis de audio."""

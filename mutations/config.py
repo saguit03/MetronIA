@@ -19,14 +19,14 @@ MAX_DUR = 1000
 MIN_VELOCITY = 50
 MAX_VELOCITY = 127
 ARTICULATED_LEGATO = {
-    "max_gap": 2000, # 2 seconds
+    "max_gap": 2000,  # 2 seconds
     "max_notes": 4
 }
 ARTICULATED_STACCATO = 0.1
 ARTICULATED_ACCENTUATED = 0.1
 TEMPO_FLUCTUATION = 0.1
 
-NOTE_HELD_TOO_LONG = { 
+NOTE_HELD_TOO_LONG = {
     "min_shift": 500,
     "max_shift": 10_000
 }
@@ -41,5 +41,3 @@ MUTATIONS_PATH = Path("mutts")
 MUTATIONS_AUDIO_PATH = "audios"
 MUTATIONS_MIDI_PATH = "midis"
 MUTATIONS_PLOTS_PATH = "plots"
-
-

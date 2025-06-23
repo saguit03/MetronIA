@@ -1,11 +1,14 @@
+from pathlib import Path
 from typing import Optional, Tuple
-import numpy as np
-import matplotlib.pyplot as plt
+
 import librosa
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pyrubberband.pyrb as pyrb
 import scipy.io.wavfile as wavfile
-from pathlib import Path
-import pandas as pd
+
+
 # Importación movida dentro de la función para evitar dependencia circular
 
 def check_extension(file_path: str, midi_name) -> str:
@@ -18,13 +21,15 @@ def check_extension(file_path: str, midi_name) -> str:
         audio_path = file_path
     return str(audio_path)
 
+
 def load_audio_files(reference_path: str, live_path: str) -> Tuple[np.ndarray, np.ndarray, int]:
     """Carga archivos de audio."""
     reference_audio, sr = librosa.load(reference_path)
     sr = int(sr)  # Ensure sr is always an int
     live_audio, _ = librosa.load(live_path, sr=sr)  # Usar mismo sr
-    
+
     return reference_audio, live_audio, sr
+
 
 def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, fs: int, hop_length: int):
     """Extrae las características de cromograma de dos audios."""
@@ -36,13 +41,14 @@ def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, 
 
 
 def sinc(x, wp_s, sample_rate, out_len, n_arrows):
-  time_map = [(int(x*sample_rate), int(y*sample_rate)) for (x, y) in wp_s[::len(wp_s)//n_arrows]]
-  time_map.append((len(x), out_len))
-  return pyrb.timemap_stretch(x, sample_rate, time_map)
+    time_map = [(int(x * sample_rate), int(y * sample_rate)) for (x, y) in wp_s[::len(wp_s) // n_arrows]]
+    time_map.append((len(x), out_len))
+    return pyrb.timemap_stretch(x, sample_rate, time_map)
+
 
 def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
     # Convertimos wp_s a muestras
-    raw_map = [(int(t1 * sample_rate), int(t2 * sample_rate)) for t1, t2 in wp_s//n_arrows]
+    raw_map = [(int(t1 * sample_rate), int(t2 * sample_rate)) for t1, t2 in wp_s // n_arrows]
 
     # Ordenamos por tiempo de entrada
     raw_map.sort(key=lambda pair: pair[0])
@@ -63,14 +69,13 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
         time_map.append(final_point)
 
     for i in range(1, len(time_map)):
-        if time_map[i][0] <= time_map[i-1][0] or time_map[i][1] <= time_map[i-1][1]:
-            print(f"Error at {i}: {time_map[i-1]} -> {time_map[i]}")
+        if time_map[i][0] <= time_map[i - 1][0] or time_map[i][1] <= time_map[i - 1][1]:
+            print(f"Error at {i}: {time_map[i - 1]} -> {time_map[i]}")
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
 
 def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, save_name, save_dir):
-    
-    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8,4))
+    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8, 4))
     librosa.display.waveshow(x_audio, sr=fs, ax=ax2)
     ax2.set(title='Referencia')
     librosa.display.waveshow(y_audio, sr=fs, ax=ax1)
@@ -81,6 +86,7 @@ def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, sav
     plt.savefig(output_filename, dpi=300, bbox_inches='tight')
     plt.close()
 
+
 def save_audio(audio, save_name, save_dir, sample_rate):
     """Guarda el audio en un fichero WAV."""
     audio_normalized = np.int16(audio / np.max(np.abs(audio)) * 32767)
@@ -89,7 +95,9 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
 
-def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows = 50, save_name = "aligned", save_dir: Optional[str] = "aligned"):
+
+def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows=50,
+                  save_name="aligned", save_dir: Optional[str] = "aligned"):
     if save_dir is None:
         save_dir = "aligned"
     aligned = sinc_creciente(y_audio, wp_s, fs, len(x_audio), n_arrows=n_arrows)
@@ -97,9 +105,11 @@ def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_l
     save_audio(aligned, save_name, save_dir, fs)
     return aligned
 
+
 def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
-    from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
-    
+    from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, \
+        extract_tempo_from_midi
+
     try:
         original_excerpt = load_midi_with_pretty_midi(midi_file_path)
         if verbose: print("✅ Archivo MIDI cargado exitosamente con pretty_midi")
@@ -125,7 +135,7 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
     except Exception as e:
         print(f"❌ Error generando audio de referencia: {e}")
         return None
-    
+
     return original_excerpt, base_tempo, reference_audio_path
 
 
@@ -149,13 +159,13 @@ def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
             # También buscar en el directorio de mutaciones
             Path(output_dir) / f"{midi_name}_Mutaciones" / f"{midi_name}_reference.wav"
         ]
-        
+
         for audio_path in audio_paths:
             if audio_path.exists():
                 # Cargar solo los metadatos para obtener la duración sin cargar todo el audio
                 duration = librosa.get_duration(path=str(audio_path))
                 return duration
-        
+
         # Si no encontramos el archivo de referencia, intentar obtener duración de cualquier análisis
         mutations_dir = Path(output_dir) / f"{midi_name}_Mutaciones"
         if mutations_dir.exists():
@@ -170,14 +180,15 @@ def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
                             max_onset = df['ref_onset_time'].max()
                             if pd.notna(max_onset):
                                 return float(max_onset + 1.0)  # +1 segundo como margen
-        
+
         print(f"⚠️ No se pudo obtener la duración para {midi_name}")
         return 0.0
-        
+
     except Exception as e:
         print(f"⚠️ Error obteniendo duración para {midi_name}: {e}")
         return 0.0
-    
+
+
 def ejemplo():
     hop_length = 1024
     x_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
@@ -191,6 +202,7 @@ def ejemplo():
     save_dir = 'z/aligned'
     save_comparative_plot(x_audio, aligned, fs, save_name, save_dir)
     save_audio(aligned, save_name, save_dir, fs)
+
 
 if __name__ == "__main__":
     ejemplo()
