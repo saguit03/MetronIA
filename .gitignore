@@ -1,6 +1,6 @@
 old/
 references/
-results/
+# results/
 mutts/
 demo_*.py
 test_*.py

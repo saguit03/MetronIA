@@ -1,0 +1,3 @@
+mutation_category,mutation_name,total_onsets_ref,total_onsets_live,correct_matches,late_matches,early_matches,missing_onsets,extra_onsets,beat_spectrum_similar,beat_spectrum_max_difference,tempo_reference_bpm,tempo_live_bpm,tempo_difference_bpm
+timing_errors,note_too_soon,86,86,85,0,1,0,0,True,0.011,120.00,117.45,2.55
+timing_errors,note_too_late,86,86,70,9,7,0,0,True,0.014,120.00,117.50,2.50
