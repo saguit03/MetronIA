@@ -1,7 +1,0 @@
-
-Validation Report
-=================
-Accuracy: 0.9286
-Precision: 0.9286
-Recall: 0.9286
-F1-Score: 0.9286
