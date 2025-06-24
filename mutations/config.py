@@ -6,14 +6,6 @@ SLOWER = 0.8
 A_LOT_SLOWER = 0.5
 ACCELERANDO = 1.3
 RITARDANDO = 0.7
-NOTE_PLAYED_TOO_SOON = {
-    "min_shift": 500,
-    "max_shift": 1000
-}
-NOTE_PLAYED_TOO_LATE = {
-    "min_shift": 500,
-    "max_shift": 1000
-}
 MIN_DUR = 100
 MAX_DUR = 1000
 MIN_VELOCITY = 50

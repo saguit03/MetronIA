@@ -136,8 +136,7 @@ class OnsetUtils:
         return similarity
 
     @staticmethod
-    def save_onsets_analysis_to_csv(dtw_onset_result: OnsetDTWAnalysisResult,                                   save_name: str, dir_path: Optional[str] = None,
-                                   progress_bar=None, mutation_name: Optional[str] = None) -> None:
+    def save_onsets_analysis_to_csv(dtw_onset_result: OnsetDTWAnalysisResult,                                   save_name: str, dir_path, mutation_name: Optional[str] = None) -> None:
         """
         Guarda el análisis detallado de onsets en un archivo CSV.
         
@@ -149,7 +148,7 @@ class OnsetUtils:
             mutation_name: Nombre de la mutación para nombrar el archivo (opcional)
         """
         # Crear directorio de resultados si no existe
-        results_dir = Path(dir_path if dir_path else "results")
+        results_dir = Path(dir_path)
         results_dir.mkdir(parents=True, exist_ok=True)
           # Nombre del archivo CSV - usar mutation_name_analysis.csv si está disponible
         if mutation_name:
@@ -201,31 +200,25 @@ class OnsetUtils:
                 'pitch': round(live_pitch, 1) if live_pitch > 0 else 60,
                 'pitch_similarity': None,
                 'is_matched': False
-            })        # Crear DataFrame y ordenar por timestamp de referencia
+            })
         df = pd.DataFrame(csv_data)
         
-        # Para onsets matched: eliminar duplicados por (ref_onset_time, live_onset_time)
         matched_mask = df['onset_type'].isin(['correct', 'late', 'early'])
         df_matched = df[matched_mask].drop_duplicates(subset=['ref_onset_time', 'live_onset_time'], keep='first')
         
-        # Para onsets missing: eliminar duplicados por ref_onset_time
         missing_mask = df['onset_type'] == 'missing'
         df_missing = df[missing_mask].drop_duplicates(subset=['ref_onset_time'], keep='first')
         
-        # Para onsets extra: eliminar duplicados por live_onset_time
         extra_mask = df['onset_type'] == 'extra'
         df_extra = df[extra_mask].drop_duplicates(subset=['live_onset_time'], keep='first')
         
-        # Combinar todos los DataFrames filtrados
         df_filtered = pd.concat([df_matched, df_missing, df_extra], ignore_index=True)
         
-        # Ordenar por timestamp de referencia (poner None al final)
         df_sorted = df_filtered.sort_values(
             by=['ref_onset_time', 'live_onset_time'], 
             na_position='last'
         )
         
-        # Guardar CSV
         df_sorted.to_csv(csv_filename, index=False, encoding='utf-8')
         if VERBOSE_LOGGING:
             print(f"💾 Análisis de onsets guardado en: {csv_filename}")
@@ -258,183 +251,115 @@ class OnsetUtils:
         
         return onsets
 
-    @staticmethod
-    def align_onsets_with_dtw(onsets_live: np.ndarray, wp: np.ndarray, 
-                             hop_length: int, sr: int) -> np.ndarray:
-        """
-        Alinea los onsets del audio en vivo usando el camino DTW.
+    # def align_onsets_with_dtw(onsets_live: np.ndarray, wp: np.ndarray, 
+    #                          hop_length: int, sr: int) -> np.ndarray:
+    #     """
+    #     Alinea los onsets del audio en vivo usando el camino DTW.
         
-        Args:
-            onsets_live: Onsets detectados en el audio en vivo (en segundos)
-            wp: Camino DTW (warping path) como array de pares [ref_frame, live_frame]
-            hop_length: Hop length usado para extraer features
-            sr: Sample rate
+    #     Args:
+    #         onsets_live: Onsets detectados en el audio en vivo (en segundos)
+    #         wp: Camino DTW (warping path) como array de pares [ref_frame, live_frame]
+    #         hop_length: Hop length usado para extraer features
+    #         sr: Sample rate
             
-        Returns:
-            Array de onsets alineados temporalmente
-        """
-        if len(onsets_live) == 0:
-            return np.array([])
+    #     Returns:
+    #         Array de onsets alineados temporalmente
+    #     """
+    #     if len(onsets_live) == 0:
+    #         return np.array([])
         
-        # Convertir onsets de segundos a frames
-        onsets_frames = librosa.time_to_frames(onsets_live, sr=sr, hop_length=hop_length)
+    #     # Convertir onsets de segundos a frames
+    #     onsets_frames = librosa.time_to_frames(onsets_live, sr=sr, hop_length=hop_length)
         
-        # Crear array para almacenar onsets alineados
-        aligned_onsets = []
+    #     # Crear array para almacenar onsets alineados
+    #     aligned_onsets = []
         
-        for onset_frame in onsets_frames:
-            # Buscar el frame más cercano en el camino DTW
-            live_frames = wp[:, 1]  # Columna de frames del audio en vivo
-            ref_frames = wp[:, 0]   # Columna de frames del audio de referencia
+    #     for onset_frame in onsets_frames:
+    #         # Buscar el frame más cercano en el camino DTW
+    #         live_frames = wp[:, 1]  # Columna de frames del audio en vivo
+    #         ref_frames = wp[:, 0]   # Columna de frames del audio de referencia
             
-            # Encontrar el índice del frame más cercano
-            closest_idx = np.argmin(np.abs(live_frames - onset_frame))
+    #         # Encontrar el índice del frame más cercano
+    #         closest_idx = np.argmin(np.abs(live_frames - onset_frame))
             
-            # Obtener el frame correspondiente en la referencia
-            aligned_ref_frame = ref_frames[closest_idx]
+    #         # Obtener el frame correspondiente en la referencia
+    #         aligned_ref_frame = ref_frames[closest_idx]
             
-            # Convertir de vuelta a tiempo
-            aligned_time = librosa.frames_to_time(aligned_ref_frame, sr=sr, hop_length=hop_length)
-            aligned_onsets.append(aligned_time)
+    #         # Convertir de vuelta a tiempo
+    #         aligned_time = librosa.frames_to_time(aligned_ref_frame, sr=sr, hop_length=hop_length)
+    #         aligned_onsets.append(aligned_time)
         
-        return np.array(aligned_onsets)
+    #     return np.array(aligned_onsets)
     
-    @staticmethod
-    def create_dtw_features(onsets: np.ndarray, pitches: np.ndarray, 
-                           pitch_weight: float = 0.7, time_weight: float = 0.3) -> np.ndarray:
-        """
-        Crea features para DTW combinando tiempo y altura.
-        
-        Args:
-            onsets: Tiempos de onsets
-            pitches: Alturas en Hz
-            pitch_weight: Peso de la información de altura
-            time_weight: Peso de la información temporal
-            
-        Returns:
-            Array de features combinadas [tiempo_normalizado, pitch_normalizado]
-        """
-        if len(onsets) == 0:
-            return np.array([]).reshape(0, 2)
-        
-        # Normalizar tiempos (0 a 1)
-        if len(onsets) > 1:
-            time_normalized = (onsets - onsets.min()) / (onsets.max() - onsets.min())
-        else:
-            time_normalized = np.array([0.0])
-        
-        # Normalizar pitches (convertir a MIDI y normalizar)
-        pitch_midi = np.array([OnsetUtils.hz_to_midi(p) if p > 0 else 0 for p in pitches])
-        if len(pitch_midi) > 1 and pitch_midi.max() > pitch_midi.min():
-            pitch_normalized = (pitch_midi - pitch_midi.min()) / (pitch_midi.max() - pitch_midi.min())
-        else:
-            pitch_normalized = np.zeros_like(pitch_midi)
-        
-        # Combinar features con pesos
-        features = np.column_stack([
-            time_normalized * time_weight,
-            pitch_normalized * pitch_weight
-        ])
-        
-        return features
-
-
-class MusicalTimeUtils:
-    """Utilidades para cálculos de tiempo musical."""
+# class MusicalTimeUtils:
+#     """Utilidades para cálculos de tiempo musical."""
     
-    @staticmethod
-    def calculate_musical_duration(tempo: float, note_type: str = 'sixteenth') -> float:
-        """
-        Calcula la duración de una nota musical en segundos basada en el tempo.
+#     @staticmethod
+#     def calculate_musical_duration(tempo: float, note_type: str = 'sixteenth') -> float:
+#         """
+#         Calcula la duración de una nota musical en segundos basada en el tempo.
         
-        Args:
-            tempo: Tempo en BPM (beats per minute)
-            note_type: Tipo de nota ('whole', 'half', 'quarter', 'eighth', 'sixteenth')
+#         Args:
+#             tempo: Tempo en BPM (beats per minute)
+#             note_type: Tipo de nota ('whole', 'half', 'quarter', 'eighth', 'sixteenth')
             
-        Returns:
-            Duración en segundos
-        """
-        # Duración de una negra en segundos
-        quarter_note_duration = 60.0 / tempo
+#         Returns:
+#             Duración en segundos
+#         """
+#         # Duración de una negra en segundos
+#         quarter_note_duration = 60.0 / tempo
         
-        note_values = {
-            'whole': 4.0,      # redonda
-            'half': 2.0,       # blanca
-            'quarter': 1.0,    # negra
-            'eighth': 0.5,     # corchea
-            'sixteenth': 0.25  # semicorchea
-        }
+#         note_values = {
+#             'whole': 4.0,      # redonda
+#             'half': 2.0,       # blanca
+#             'quarter': 1.0,    # negra
+#             'eighth': 0.5,     # corchea
+#             'sixteenth': 0.25  # semicorchea
+#         }
         
-        if note_type not in note_values:
-            note_type = 'sixteenth'  # default: usar la subdivisión más pequeña
+#         if note_type not in note_values:
+#             note_type = 'sixteenth'  # default: usar la subdivisión más pequeña
             
-        duration = quarter_note_duration * note_values[note_type]
-        return duration
+#         duration = quarter_note_duration * note_values[note_type]
+#         return duration
     
-    @staticmethod
-    def detect_smallest_subdivision(onsets: np.ndarray, tempo: float) -> str:
-        """
-        Detecta la subdivisión musical más pequeña presente en una secuencia de onsets.
+#     @staticmethod
+#     def detect_smallest_subdivision(onsets: np.ndarray, tempo: float) -> str:
+#         """
+#         Detecta la subdivisión musical más pequeña presente en una secuencia de onsets.
         
-        Args:
-            onsets: Array de tiempos de onsets en segundos
-            tempo: Tempo en BPM
+#         Args:
+#             onsets: Array de tiempos de onsets en segundos
+#             tempo: Tempo en BPM
             
-        Returns:
-            Tipo de nota que representa la subdivisión más pequeña
-        """
-        if len(onsets) < 2:
-            return 'sixteenth'  # default
+#         Returns:
+#             Tipo de nota que representa la subdivisión más pequeña
+#         """
+#         if len(onsets) < 2:
+#             return 'sixteenth'  # default
         
-        # Calcular intervalos entre onsets consecutivos
-        intervals = np.diff(onsets)
+#         # Calcular intervalos entre onsets consecutivos
+#         intervals = np.diff(onsets)
         
-        # Calcular duraciones de diferentes tipos de notas
-        quarter_duration = 60.0 / tempo
-        note_durations = {
-            'quarter': quarter_duration,
-            'eighth': quarter_duration * 0.5,
-            'sixteenth': quarter_duration * 0.25,
-        }
+#         # Calcular duraciones de diferentes tipos de notas
+#         quarter_duration = 60.0 / tempo
+#         note_durations = {
+#             'quarter': quarter_duration,
+#             'eighth': quarter_duration * 0.5,
+#             'sixteenth': quarter_duration * 0.25,
+#         }
         
-        # Encontrar el intervalo más pequeño significativo (ignorar valores muy pequeños)
-        min_significant_interval = np.min(intervals[intervals > 0.05])  # Ignorar intervalos < 50ms
-          # Determinar qué tipo de nota se aproxima más al intervalo mínimo
-        best_match = 'sixteenth'
-        best_diff = float('inf')
+#         # Encontrar el intervalo más pequeño significativo (ignorar valores muy pequeños)
+#         min_significant_interval = np.min(intervals[intervals > 0.05])  # Ignorar intervalos < 50ms
+#           # Determinar qué tipo de nota se aproxima más al intervalo mínimo
+#         best_match = 'sixteenth'
+#         best_diff = float('inf')
         
-        for note_type, duration in note_durations.items():
-            diff = abs(min_significant_interval - duration)
-            if diff < best_diff:
-                best_diff = diff
-                best_match = note_type
+#         for note_type, duration in note_durations.items():
+#             diff = abs(min_significant_interval - duration)
+#             if diff < best_diff:
+#                 best_diff = diff
+#                 best_match = note_type
         
-        return best_match
+#         return best_match
     
-    @staticmethod
-    def get_tempo_based_margins(tempo: float, subdivision: str = "quarter") -> Tuple[float, float]:
-        """
-        Calcula márgenes de análisis basados en el tempo y la subdivisión musical.
-        
-        Args:
-            tempo: Tempo en BPM
-            subdivision: Subdivisión a usar ('sixteenth', 'eighth', etc.)
-            
-        Returns:
-            Tupla con (margen_estricto, margen_amplio) en segundos
-        """
-        if subdivision is None:
-            subdivision = 'sixteenth'  # Usar la subdivisión más pequeña por defecto
-            
-        # Calcular duración de la subdivisión
-        subdivision_duration = MusicalTimeUtils.calculate_musical_duration(tempo, subdivision)
-        
-        # Márgenes como porcentaje de la duración de la subdivisión
-        strict_margin = subdivision_duration * 0.15   # 15% de la duración
-        wide_margin = subdivision_duration * 0.40     # 40% de la duración
-        
-        # Limitar los márgenes para evitar valores extremos
-        strict_margin = max(0.010, min(strict_margin, 0.050))  # Entre 10ms y 50ms
-        wide_margin = max(0.025, min(wide_margin, 0.150))     # Entre 25ms y 150ms
-        
-        return strict_margin, wide_margin

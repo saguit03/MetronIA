@@ -23,10 +23,6 @@ class MutationCategory:
         """Retorna solo las mutaciones que fueron exitosas."""
         return [mut for mut in self.mutations.values() if mut.success]
 
-    def get_failed_mutations(self) -> List[MutationResult]:
-        """Retorna solo las mutaciones que fallaron."""
-        return [mut for mut in self.mutations.values() if not mut.success]
-
     def __str__(self):
         successful = len(self.get_successful_mutations())
         total = len(self.mutations)

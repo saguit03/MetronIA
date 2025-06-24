@@ -16,12 +16,10 @@ Este paquete contiene clases especializadas para análisis de audio musical:
 
 from .beat_spectrum_analyzer import BeatSpectrumAnalyzer
 from .config import AudioAnalysisConfig
-from .dtw_aligner import DTWAligner
 from .feature_extractor import AudioFeatureExtractor
 from .music_analyzer import MusicAnalyzer
 from .onset_dtw_analyzer import OnsetDTWAnalyzer
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatch
-from .result_visualizer import ResultVisualizer
 from .results import BeatSpectrumResult, TempoAnalysisResult
 from .tempo_analyzer import TempoAnalyzer
 from .visualizer import AudioVisualizer
@@ -33,11 +31,9 @@ __all__ = [
     'OnsetDTWAnalysisResult',
     'OnsetMatch',
     'AudioFeatureExtractor',
-    'DTWAligner',
     'OnsetDTWAnalyzer',
     'TempoAnalyzer',
     'BeatSpectrumAnalyzer',
     'AudioVisualizer',
-    'ResultVisualizer',
     'MusicAnalyzer',
 ]

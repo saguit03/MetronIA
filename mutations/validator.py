@@ -77,14 +77,6 @@ class MutationValidation:
             y_true = y_true_raw[:min_length]
             y_pred = y_pred[:min_length]
             
-            if len(y_true_raw) != len(analysis_data['onset_type']):
-                print(f"Warning: Length mismatch for mutation {mutation_name}: "
-                      f"logs={len(y_true_raw)}, analysis={len(analysis_data['onset_type'])}")
-
-        if len(y_true) == 0 or len(y_pred) == 0:
-            print(f"Warning: Empty validation arrays for mutation {mutation_name}")
-            return
-
         result_data = {
             'mutation_name': mutation_name,
             'category': mutation_category,
@@ -126,7 +118,6 @@ class MutationValidation:
             }
 
         if len(all_true) != len(all_pred):
-            print(f"Warning: Length mismatch in overall metrics: true={len(all_true)}, pred={len(all_pred)}")
             min_length = min(len(all_true), len(all_pred))
             all_true = all_true[:min_length]
             all_pred = all_pred[:min_length]
@@ -204,11 +195,9 @@ class MutationValidation:
                 labels = sorted(list(set(all_true + all_pred)))
                 
             if len(all_true) != len(all_pred):
-                print(f"Warning: Length mismatch in category {category}: true={len(all_true)}, pred={len(all_pred)}")
                 min_length = min(len(all_true), len(all_pred))
                 all_true = all_true[:min_length]
                 all_pred = all_pred[:min_length]
-                print(f"Truncated to length: {min_length}")
             
             cm = confusion_matrix(all_true, all_pred, labels=labels)
             accuracy = accuracy_score(all_true, all_pred)
@@ -271,16 +260,47 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
 
     validation_csv_path = validation_results_dir / "validation_results.csv"
     validator.save_validation_results_csv(validation_result, str(validation_csv_path))
-    
-    # Obtener métricas por categoría y generar archivos individuales
+      # Obtener métricas por categoría
     category_metrics = validator.get_metrics_by_category()
     
+    # Crear archivo Validation_results.csv con métricas por categoría
+    validation_by_category_data = []
+    
     for category, metrics in category_metrics.items():
-        # Crear archivo CSV para cada categoría
-        category_csv_path = validation_results_dir / f"{category}_validation.csv"
+        validation_by_category_data.append({
+            'archivo': midi_name,
+            'categoria': category,
+            'exactitud': metrics['accuracy'],
+            'precision': metrics['precision'],
+            'recall': metrics['recall'],
+            'f1_score': metrics['f1_score'],
+            'total_mutaciones': metrics['total_mutations']
+        })
+    
+    # Agregar fila de promedio general
+    validation_by_category_data.append({
+        'archivo': midi_name,
+        'categoria': 'PROMEDIO',
+        'exactitud': validation_result['accuracy'],
+        'precision': validation_result['precision'],
+        'recall': validation_result['recall'],
+        'f1_score': validation_result['f1_score'],
+        'total_mutaciones': len(validator.results)
+    })
+    
+    # Guardar archivo Validation_results.csv
+    df_validation_results = pd.DataFrame(validation_by_category_data)
+    validation_results_path = validation_results_dir / "Validation_results.csv"
+    df_validation_results.to_csv(validation_results_path, index=False)
+    
+    if VERBOSE_LOGGING:
+        print(f"   📁 Archivo de validación por categorías creado: {validation_results_path}")
+        for category, metrics in category_metrics.items():
+            print(f"      - {category}: Exactitud={metrics['accuracy']:.4f}, F1={metrics['f1_score']:.4f}")
+
+    for category, metrics in category_metrics.items():
         category_data = []
         
-        # Obtener resultados solo de esta categoría
         category_results = validator.results_by_category[category]
         for result in category_results:
             category_data.append({
@@ -290,11 +310,6 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
                 'y_pred': result['y_pred']
             })
             
-        if category_data:
-            df_category = pd.DataFrame(category_data)
-            df_category.to_csv(category_csv_path, index=False)
-
-    # Retornar métricas para cálculo de promedio
     return {
         'accuracy': validation_result['accuracy'],
         'precision': validation_result['precision'],
@@ -411,7 +426,7 @@ Archivo {i} ({midi_name}):
     
     # Guardar CSV de métricas promedio solo en Validation_Results
     df = pd.DataFrame(csv_data)
-    validation_csv_path = validation_results_dir / "average_validation_metrics.csv"
+    validation_csv_path = validation_results_dir / "average_validation_by_file.csv"
     df.to_csv(validation_csv_path, index=False, encoding='utf-8')
 
 
@@ -431,158 +446,125 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
     from collections import defaultdict
     from datetime import datetime
     
-    # Recolectar métricas por categoría de todos los archivos
+    # Recolectar métricas por categoría de todos los archivos usando Validation_results.csv
     category_data = defaultdict(list)
     
     for midi_file in midi_files_processed:
         midi_name = Path(midi_file).stem
         
-        # Buscar el archivo de validación para este MIDI
+        # Buscar el archivo Validation_results.csv
         validation_dir = Path(output_dir) / f"{midi_name}_Validation"
-        validation_results_dir = validation_dir / "Validation_Results"
+        validation_results_file = validation_dir / "Validation_Results" / "Validation_results.csv"
         
-        if not validation_results_dir.exists():
+        if not validation_results_file.exists():
+            if VERBOSE_LOGGING:
+                print(f"⚠️ No se encontró {validation_results_file}")
             continue
             
-        # Leer todos los archivos de categoría
-        for category_file in validation_results_dir.glob("*_validation.csv"):
-            category_name = category_file.stem.replace("_validation", "")
-            
-            try:
-                df = pd.read_csv(category_file)
-                if not df.empty:
-                    category_data[category_name].append({
+        try:
+            df = pd.read_csv(validation_results_file)
+            if not df.empty:
+                # Filtrar solo las filas que no sean promedios generales
+                df_categories = df[df['categoria'] != 'PROMEDIO']
+                
+                for _, row in df_categories.iterrows():
+                    category = row['categoria']
+                    category_data[category].append({
                         'midi_name': midi_name,
-                        'data': df
+                        'exactitud': row['exactitud'],
+                        'precision': row['precision'],
+                        'recall': row['recall'],
+                        'f1_score': row['f1_score'],
+                        'total_mutaciones': row['total_mutaciones']
                     })
-            except Exception as e:
-                print(f"⚠️ Error leyendo {category_file}: {e}")
+        except Exception as e:
+            print(f"⚠️ Error leyendo {validation_results_file}: {e}")
     
     # Crear directorio principal de validación de categorías
     main_validation_dir = Path(output_dir) / "Validation_Results"
     main_validation_dir.mkdir(exist_ok=True)
     
-    # Generar reporte y métricas consolidadas por categoría
-    for category, midi_data_list in category_data.items():
-        if not midi_data_list:
+    # Generar archivos consolidados por categoría
+    for category, category_results in category_data.items():
+        if not category_results:
             continue
             
-        # Consolidar todos los datos de esta categoría
-        all_true = []
-        all_pred = []
+        # Crear CSV consolidado para esta categoría
+        category_csv_path = main_validation_dir / f"{category}_validation.csv"
         
-        for midi_data in midi_data_list:
-            df = midi_data['data']
-            # Convertir listas de strings back a lists
-            for _, row in df.iterrows():
-                if pd.notna(row.get('y_true')) and pd.notna(row.get('y_pred')):
-                    try:
-                        y_true = eval(row['y_true']) if isinstance(row['y_true'], str) else row['y_true']
-                        y_pred = eval(row['y_pred']) if isinstance(row['y_pred'], str) else row['y_pred']
-                        
-                        if isinstance(y_true, list) and isinstance(y_pred, list):
-                            all_true.extend(y_true)
-                            all_pred.extend(y_pred)
-                    except:
-                        continue
+        category_metrics_data = []
         
-        if not all_true or not all_pred:
-            continue
-              # Calcular métricas para esta categoría
-        try:
-            accuracy = accuracy_score(all_true, all_pred)
-            precision = precision_score(all_true, all_pred, average='weighted', zero_division=0)
-            recall = recall_score(all_true, all_pred, average='weighted', zero_division=0)
-            f1 = f1_score(all_true, all_pred, average='weighted', zero_division=0)
+        # Agregar datos de cada archivo
+        for result in category_results:
+            category_metrics_data.append({
+                'archivo': result['midi_name'],
+                'categoria': category,
+                'exactitud': result['exactitud'],
+                'precision': result['precision'],
+                'recall': result['recall'],
+                'f1_score': result['f1_score'],
+                'total_mutaciones': result['total_mutaciones']
+            })
+        
+        # Calcular y añadir fila de promedio
+        if category_metrics_data:
+            avg_exactitud = round(sum(r['exactitud'] for r in category_results) / len(category_results), 4)
+            avg_precision = round(sum(r['precision'] for r in category_results) / len(category_results), 4)
+            avg_recall = round(sum(r['recall'] for r in category_results) / len(category_results), 4)
+            avg_f1_score = round(sum(r['f1_score'] for r in category_results) / len(category_results), 4)
+            total_mutaciones_sum = sum(r['total_mutaciones'] for r in category_results)
             
-            # Redondear métricas
-            accuracy = round(accuracy, 4)
-            precision = round(precision, 4)
-            recall = round(recall, 4)
-            f1 = round(f1, 4)
-            
-            # Crear CSV consolidado para esta categoría
-            category_csv_path = main_validation_dir / f"{category}_validation.csv"
-            
-            category_metrics_data = []
-            for midi_data in midi_data_list:
-                category_metrics_data.append({
-                    'archivo': midi_data['midi_name'],
-                    'categoria': category,
-                    'exactitud': accuracy,
-                    'precision': precision,
-                    'recall': recall,
-                    'f1_score': f1,
-                    'total_mutaciones': len(midi_data['data'])
-                })
-            
-            # Añadir fila de promedio
             category_metrics_data.append({
                 'archivo': 'PROMEDIO',
                 'categoria': category,
-                'exactitud': accuracy,
-                'precision': precision,
-                'recall': recall,
-                'f1_score': f1,
-                'total_mutaciones': sum(len(md['data']) for md in midi_data_list)
+                'exactitud': avg_exactitud,
+                'precision': avg_precision,
+                'recall': avg_recall,
+                'f1_score': avg_f1_score,
+                'total_mutaciones': total_mutaciones_sum
             })
             
             df_category_metrics = pd.DataFrame(category_metrics_data)
             df_category_metrics.to_csv(category_csv_path, index=False, encoding='utf-8')
             
-        except Exception as e:
-            print(f"⚠️ Error calculando métricas para categoría {category}: {e}")
+            if VERBOSE_LOGGING:
+                print(f"📊 Categoría {category}:")
+                print(f"   Exactitud promedio: {avg_exactitud:.4f}")
+                print(f"   Precisión promedio: {avg_precision:.4f}")
+                print(f"   Recall promedio: {avg_recall:.4f}")
+                print(f"   F1-Score promedio: {avg_f1_score:.4f}")
+                print(f"   Total mutaciones: {total_mutaciones_sum}")
+                print(f"   Archivo guardado: {category_csv_path}")
     
     # Generar archivo consolidado con métricas promedio por categoría
     if category_data:
         category_summary_data = []
         
-        for category, midi_data_list in category_data.items():
-            if not midi_data_list:
+        for category, category_results in category_data.items():
+            if not category_results:
                 continue
-                
-            # Consolidar datos para calcular métricas por categoría
-            all_true = []
-            all_pred = []
             
-            for midi_data in midi_data_list:
-                df = midi_data['data']
-                for _, row in df.iterrows():
-                    if pd.notna(row.get('y_true')) and pd.notna(row.get('y_pred')):
-                        try:
-                            y_true = eval(row['y_true']) if isinstance(row['y_true'], str) else row['y_true']
-                            y_pred = eval(row['y_pred']) if isinstance(row['y_pred'], str) else row['y_pred']
-                            
-                            if isinstance(y_true, list) and isinstance(y_pred, list):
-                                all_true.extend(y_true)
-                                all_pred.extend(y_pred)
-                        except:
-                            continue
-            if all_true and all_pred:
-                try:
-                    accuracy = accuracy_score(all_true, all_pred)
-                    precision = precision_score(all_true, all_pred, average='weighted', zero_division=0)
-                    recall = recall_score(all_true, all_pred, average='weighted', zero_division=0)
-                    f1 = f1_score(all_true, all_pred, average='weighted', zero_division=0)
-                    
-                    category_summary_data.append({
-                        'categoria': category,
-                        'exactitud': round(accuracy, 4),
-                        'precision': round(precision, 4),
-                        'recall': round(recall, 4),
-                        'f1_score': round(f1, 4),
-                        'total_mutaciones': sum(len(md['data']) for md in midi_data_list),
-                        'archivos_procesados': len(midi_data_list)
-                    })
-                except Exception as e:
-                    print(f"⚠️ Error calculando métricas consolidadas para {category}: {e}")
+            avg_exactitud = round(sum(r['exactitud'] for r in category_results) / len(category_results), 4)
+            avg_precision = round(sum(r['precision'] for r in category_results) / len(category_results), 4)
+            avg_recall = round(sum(r['recall'] for r in category_results) / len(category_results), 4)
+            avg_f1_score = round(sum(r['f1_score'] for r in category_results) / len(category_results), 4)
+            total_mutaciones_sum = sum(r['total_mutaciones'] for r in category_results)
+            
+            category_summary_data.append({
+                'categoria': category,
+                'exactitud': avg_exactitud,
+                'precision': avg_precision,
+                'recall': avg_recall,
+                'f1_score': avg_f1_score,
+                'total_mutaciones': total_mutaciones_sum,
+                'archivos_procesados': len(category_results)
+            })
         
         # Guardar archivo de resumen por categorías
         if category_summary_data:
             summary_csv_path = main_validation_dir / "average_validation_by_category.csv"
             df_summary = pd.DataFrame(category_summary_data)
-            df_summary.to_csv(summary_csv_path, index=False, encoding='utf-8')
-            
+            df_summary.to_csv(summary_csv_path, index=False, encoding='utf-8')            
             if VERBOSE_LOGGING:
                 print(f"📊 Resumen por categorías guardado en: {summary_csv_path}")
     
@@ -612,7 +594,6 @@ def get_total_onsets_ref(midi_name: str, output_dir: str) -> int:
         df = pd.read_csv(mutations_summary_path)
 
         if 'total_onsets_ref' in df.columns and not df.empty:
-            # Tomar el valor de la primera fila (debería ser el mismo para todas las mutaciones del mismo archivo)
             # Obtener el valor más alto de 'total_onsets_ref' si hay múltiples filas
             return int(max(df['total_onsets_ref']))
         else:

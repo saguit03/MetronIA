@@ -7,12 +7,10 @@ import matplotlib.pyplot as plt
 
 from utils.audio_utils import load_audio_files, stretch_audio, calculate_warping_path
 from .beat_spectrum_analyzer import BeatSpectrumAnalyzer
-from .config import AudioAnalysisConfig, VERBOSE_LOGGING
-from .dtw_aligner import DTWAligner
-from .feature_extractor import AudioFeatureExtractor
+from .config import AudioAnalysisConfig
 from .onset_dtw_analyzer import OnsetDTWAnalyzer
 from .onset_utils import OnsetUtils
-from .result_visualizer import ResultVisualizer
+from .result_visualizer import plot_onset_errors_detailed
 from .tempo_analyzer import TempoAnalyzer
 from .visualizer import AudioVisualizer
 import librosa
@@ -23,15 +21,11 @@ class MusicAnalyzer:
     
     def __init__(self, config: Optional[AudioAnalysisConfig] = None):
         self.config = config or AudioAnalysisConfig()
-        self.dtw_aligner = DTWAligner(self.config)
         self.onset_dtw_analyzer = OnsetDTWAnalyzer(self.config)
         self.tempo_analyzer = TempoAnalyzer(self.config)
         self.beat_spectrum_analyzer = BeatSpectrumAnalyzer(self.config)
         self.visualizer = AudioVisualizer(self.config)
-        self.result_visualizer = ResultVisualizer()
-        self.feature_extractor = AudioFeatureExtractor(self.config)
-        self.onset_utils = OnsetUtils()
-        
+
     def comprehensive_analysis(self, reference_path: str, live_path: str, 
                              save_name: Optional[str] = None,
                              reference_tempo: Optional[float] = None,
@@ -76,7 +70,7 @@ class MusicAnalyzer:
             
             self.visualizer.plot_beat_spectrum_comparison(result=beat_result, sr=sr, save_name="beat_spectrum", dir_path=analysis_dir)
             fig_timeline, ax = self.visualizer.plot_timeline_onset_errors_detailed(result=dtw_onset_result, save_name="timeline", dir_path=analysis_dir)
-            self.result_visualizer.plot_onset_errors_detailed(dtw_onset_result=dtw_onset_result, save_name="onset_errors_detailed", dir_path=analysis_dir)
+            plot_onset_errors_detailed(dtw_onset_result=dtw_onset_result, save_name="onset_errors_detailed", dir_path=analysis_dir)
             OnsetUtils.save_onsets_analysis_to_csv(dtw_onset_result=dtw_onset_result, save_name="analysis", dir_path=analysis_dir, mutation_name=mutation_name)
             plt.close(fig_timeline)
 

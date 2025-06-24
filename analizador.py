@@ -28,7 +28,6 @@ from typing import Dict, Any, Optional
 from analyzers import MusicAnalyzer
 # from analyzers.timeline import play_audio
 
-
 def validate_arguments() -> tuple[str, str, Optional[str]]:
     """
     Valida los argumentos de línea de comandos.
@@ -89,68 +88,6 @@ def generate_analysis_name(live_path: str) -> str:
     return analysis_name
 
 
-def create_results_directory() -> Path:
-    """
-    Crea el directorio de resultados si no existe.
-    
-    Returns:
-        Path del directorio de resultados
-    """
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
-    return results_dir
-
-
-def print_analysis_summary(analysis_result: Dict[str, Any], analysis_name: str):
-    """
-    Imprime un resumen del análisis realizado.
-    
-    Args:
-        analysis_result: Resultados del análisis
-        analysis_name: Nombre del análisis
-    """
-    print(f"\n📊 RESUMEN DEL ANÁLISIS '{analysis_name}'")
-    print("=" * 60)
-
-    # Resumen de onsets
-    dtw_onsets = analysis_result.get('dtw_onsets')
-    if dtw_onsets:
-        total_matches = len(dtw_onsets.matches)
-        correct_matches = len([m for m in dtw_onsets.matches if m.classification.value == 'correct'])
-        late_matches = len([m for m in dtw_onsets.matches if m.classification.value == 'late'])
-        early_matches = len([m for m in dtw_onsets.matches if m.classification.value == 'early'])
-        missing_onsets = len(dtw_onsets.missing_onsets)
-        extra_onsets = len(dtw_onsets.extra_onsets)
-
-        print(f"🎯 Análisis de Onsets:")
-        print(f"   ✅ Correctos: {correct_matches}")
-        print(f"   ⏰ Tarde: {late_matches}")
-        print(f"   ⚡ Adelantados: {early_matches}")
-        print(f"   ❌ Perdidos: {missing_onsets}")
-        print(f"   ➕ Extra: {extra_onsets}")
-        print(f"   📈 Total emparejados: {total_matches}")
-
-        if total_matches > 0:
-            accuracy = (correct_matches / total_matches) * 100
-            print(f"   🎯 Precisión: {accuracy:.1f}%")
-
-    # Resumen de tempo
-    tempo_result = analysis_result.get('tempo')
-    if tempo_result:
-        print(f"\n🎵 Análisis de Tempo:")
-        print(f"   📄 Referencia: {tempo_result.tempo_ref:.1f} BPM")
-        print(f"   🎤 En vivo: {tempo_result.tempo_live:.1f} BPM")
-        print(f"   📊 Diferencia: {tempo_result.difference:.1f} BPM")
-        print(f"   ✅ Similar: {'Sí' if tempo_result.is_similar else 'No'}")
-
-    # Resumen de beat spectrum
-    beat_result = analysis_result.get('beat_spectrum')
-    if beat_result:
-        print(f"\n🎼 Análisis de Beat Spectrum:")
-        print(f"   📊 Diferencia máxima: {beat_result.max_difference:.3f}")
-        print(f"   ✅ Similar: {'Sí' if beat_result.is_similar else 'No'}")
-
-
 def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Dict[str, Any]:
     """
     Realiza el análisis completo entre los dos archivos de audio.
@@ -168,10 +105,9 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
         # Crear analizador
         analyzer = MusicAnalyzer()
 
-        save_dir = Path("results") / analysis_name
+        save_dir = Path(f"results_{analysis_name}")
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        # Realizar análisis completo
         analysis_result = analyzer.comprehensive_analysis(
             reference_path=ref_path,
             live_path=live_path,

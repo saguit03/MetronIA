@@ -26,20 +26,9 @@ class OnsetMatch(NamedTuple):
     live_onset: float
     ref_pitch: float
     live_pitch: float
-    time_adjustment: float  # Ajuste temporal aplicado (ms)
-    pitch_similarity: float  # Similitud de altura (0-1)
-
-
-class OnsetMatchClassified(NamedTuple):
-    """Representa un emparejamiento clasificado entre onsets de referencia y en vivo."""
-    ref_onset: float
-    live_onset: float
-    ref_pitch: float
-    live_pitch: float
-    time_adjustment: float  # Ajuste temporal aplicado (ms)
-    pitch_similarity: float  # Similitud de altura (0-1)
-    classification: OnsetType  # Clasificación del onset
-
+    time_adjustment: float
+    pitch_similarity: float
+    classification: OnsetType
 
 @dataclass
 class OnsetDTWAnalysisResult:
@@ -52,7 +41,7 @@ class OnsetDTWAnalysisResult:
     """
     
     # Matches unificados (incluye todos los emparejamientos con clasificación)
-    matches: List[OnsetMatchClassified]
+    matches: List[OnsetMatch]
     
     # Onsets no emparejados
     missing_onsets: List[tuple]  # (tiempo, pitch) de referencia
@@ -71,22 +60,19 @@ class OnsetDTWAnalysisResult:
     @property
     def correct_matches(self) -> List[OnsetMatch]:
         """Obtiene solo los matches correctos."""
-        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_pitch, m.live_pitch, 
-                          m.time_adjustment, m.pitch_similarity) 
+        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_pitch, m.live_pitch, m.time_adjustment, m.pitch_similarity, m.classification) 
                 for m in self.matches if m.classification == OnsetType.CORRECT]
     
     @property
     def late_matches(self) -> List[OnsetMatch]:
         """Obtiene solo los matches tardíos."""
-        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_pitch, m.live_pitch, 
-                          m.time_adjustment, m.pitch_similarity) 
+        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_pitch, m.live_pitch, m.time_adjustment, m.pitch_similarity,  m.classification) 
                 for m in self.matches if m.classification == OnsetType.LATE]
     
     @property
     def early_matches(self) -> List[OnsetMatch]:
         """Obtiene solo los matches adelantados."""
-        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_pitch, m.live_pitch, 
-                          m.time_adjustment, m.pitch_similarity) 
+        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_pitch, m.live_pitch, m.time_adjustment, m.pitch_similarity, m.classification) 
                 for m in self.matches if m.classification == OnsetType.EARLY]
     
     def _calculate_stats(self):
@@ -227,7 +213,7 @@ class OnsetDTWAnalysisResult:
         # Reconstruir matches
         matches = []
         for match_data in data['matches']:
-            match = OnsetMatchClassified(
+            match = OnsetMatch(
                 ref_onset=match_data['ref_onset'],
                 live_onset=match_data['live_onset'],
                 ref_pitch=match_data['ref_pitch'],

@@ -16,6 +16,7 @@ import argparse
 import os
 from pathlib import Path
 from typing import Dict, Any, List
+from datetime import datetime
 
 import pandas as pd
 from tqdm import tqdm
@@ -46,9 +47,6 @@ EPILOG = """Ejemplos de uso:
 
   # Usar un archivo MIDI específico
   python mutar_y_analizar.py --midi path/to/your/file.mid
-
-  # Combinación de opciones
-  python mutar_y_analizar.py --midi midi/Acordai-100.mid --categories timing_errors pitch_errors
 
 Categorías disponibles:
   - pitch_errors: Errores de altura de las notas
@@ -292,7 +290,7 @@ def analizar_mutaciones(successful_mutations, reference_audio_path, base_tempo, 
         save_analysis_results_to_csv(csv_data, csv_file)
 
 
-def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str = "results") -> Dict[
+def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str) -> Dict[
     str, float]:
     """
     Pipeline completo para generar mutaciones y analizar interpretaciones.
@@ -385,6 +383,12 @@ def get_midi_files_to_process(args) -> List[str]:
     return midi_files_to_process
 
 
+def get_output_directory(args) -> str:
+    base_dir = args.output
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = f"{base_dir}_{timestamp}"
+    return output_dir
+
 def main():
     """Función principal del pipeline."""
     args = metronia_arg_parser()
@@ -396,16 +400,20 @@ def main():
     if DEBUG:
         args.categories = debug_categories
 
-    midi_files_to_process = get_midi_files_to_process(args)
-    if not midi_files_to_process:
-        return
-
     print("=" * 90)
     print("🎵 Mutaciones de MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios")
     print("=" * 90)
 
+    midi_files_to_process = get_midi_files_to_process(args)
+    if not midi_files_to_process:
+        print("❌ No se encontraron archivos MIDI para procesar. Asegúrate de especificar un archivo o directorio válido.")
+        return
+
+    # Determinar directorio de salida
+    output_dir = get_output_directory(args)
+
     print("\n🎵 CONFIGURACIÓN GENERAL DEL PIPELINE:")
-    print(f"  📁 Directorio salida: {args.output}")
+    print(f"  📁 Directorio salida: {output_dir}")
     if args.categories:
         print(f"  🎯 Categorías filtradas: {', '.join(args.categories)}")
     else:
@@ -435,7 +443,7 @@ def main():
             validation_metrics = create_mutation_pipeline(
                 mutation_manager=mutation_manager,
                 midi_file_path=midi_file_path,
-                output_base_dir=args.output
+                output_base_dir=output_dir
             )
 
             if validation_metrics:
@@ -464,7 +472,7 @@ def main():
             all_validation_metrics,
             processed_files,
             args.categories,
-            args.output
+            output_dir
         )
         
         # Generar reportes por categoría
@@ -472,7 +480,7 @@ def main():
             all_validation_metrics,
             processed_files,
             args.categories,
-            args.output
+            output_dir
         )
 
 

@@ -37,7 +37,6 @@ class MutationManager:
     def _initialize_mutations(self):
         """Inicializa todas las categorías y mutaciones."""
 
-        # Errores de altura
         pitch_category = MutationCategory(
             name="pitch_errors",
             description="Errores de altura de las notas"
@@ -49,7 +48,6 @@ class MutationManager:
         ))
         self.categories["pitch_errors"] = pitch_category
 
-        # Errores de tempo
         tempo_category = MutationCategory(
             name="tempo_errors",
             description="Errores relacionados con el tempo"
@@ -70,7 +68,6 @@ class MutationManager:
             description="Errores de tempo progresivo"
         )
 
-        # Mutaciones de tempo progresivo
         progressive_tempo_mutations = [
             ("accelerando", "Accelerando - incremento gradual del tempo", accelerando_tempo_mutation),
             ("ritardando", "Ritardando - disminución gradual del tempo", ritardando_tempo_mutation),
@@ -80,7 +77,6 @@ class MutationManager:
             progressive_tempo_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["progressive_tempo_errors"] = progressive_tempo_category
 
-        # Errores de timing
         timing_category = MutationCategory(
             name="timing_errors",
             description="Errores de timing de las notas"
@@ -93,7 +89,6 @@ class MutationManager:
             timing_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["timing_errors"] = timing_category
 
-        # Errores de duración
         duration_category = MutationCategory(
             name="duration_errors",
             description="Errores de duración de las notas"
@@ -106,7 +101,6 @@ class MutationManager:
             duration_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["duration_errors"] = duration_category
 
-        # Errores de notas
         note_category = MutationCategory(
             name="note_errors",
             description="Errores de presencia de notas"
@@ -119,7 +113,6 @@ class MutationManager:
             note_category.add_mutation(MutationResult(name=name, description=desc, function=func))
         self.categories["note_errors"] = note_category
 
-        # Errores de articulación
         articulation_category = MutationCategory(
             name="articulation_errors",
             description="Errores de articulación"
@@ -146,31 +139,3 @@ class MutationManager:
             all_mutations.extend(category.mutations.values())
         return all_mutations
 
-    def get_successful_mutations(self) -> List[MutationResult]:
-        """Retorna todas las mutaciones exitosas."""
-        return [mut for mut in self.get_all_mutations() if mut.success]
-
-    def get_failed_mutations(self) -> List[MutationResult]:
-        """Retorna todas las mutaciones que fallaron."""
-        return [mut for mut in self.get_all_mutations() if not mut.success]
-
-    def print_summary(self):
-        """Imprime un resumen de todas las mutaciones."""
-        print("=== RESUMEN DE MUTACIONES ===")
-        for category in self.categories.values():
-            print(f"\n{category}")
-            for mutation in category.mutations.values():
-                print(f"  {mutation}")
-
-        total_mutations = len(self.get_all_mutations())
-        successful_mutations = len(self.get_successful_mutations())
-        print(f"\nTOTAL: {successful_mutations}/{total_mutations} mutaciones exitosas")
-
-    def export_paths(self) -> Dict[str, str]:
-        """Exporta todas las rutas de archivos generados."""
-        paths = {}
-        for category_name, category in self.categories.items():
-            for mutation_name, mutation in category.mutations.items():
-                if mutation.path:
-                    paths[f"{category_name}.{mutation_name}"] = mutation.path
-        return paths

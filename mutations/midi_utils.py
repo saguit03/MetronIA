@@ -10,6 +10,8 @@ from mutations.config import MUTATIONS_PATH, MUTATIONS_AUDIO_PATH, MUTATIONS_MID
 from mutations.results import MutationResult
 from utils.audio_utils import save_audio
 
+import warnings
+warnings.filterwarnings("ignore", module="pretty_midi")
 
 def save_excerpt_in_audio(excerpt, dir_name, save_name, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)

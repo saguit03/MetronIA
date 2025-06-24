@@ -112,8 +112,7 @@ def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_l
 
 
 def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
-    from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, \
-        extract_tempo_from_midi
+    from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
     try:
         original_excerpt = load_midi_with_pretty_midi(midi_file_path)
         if verbose: print("✅ Archivo MIDI cargado exitosamente con pretty_midi")

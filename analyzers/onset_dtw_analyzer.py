@@ -7,7 +7,7 @@ from typing import Tuple, Optional, List, Dict
 import numpy as np
 
 from .config import AudioAnalysisConfig
-from .onset_results import OnsetDTWAnalysisResult, OnsetMatchClassified, OnsetType
+from .onset_results import OnsetDTWAnalysisResult, OnsetMatch, OnsetType
 from .onset_utils import OnsetUtils
 
 
@@ -90,7 +90,7 @@ class OnsetDTWAnalyzer:
 
         return valid_dtw_path
     
-    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray, onsets_live: np.ndarray, pitches_live: np.ndarray, verbose: Optional[bool] = False) -> List[OnsetMatchClassified]:
+    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray, onsets_live: np.ndarray, pitches_live: np.ndarray, verbose: Optional[bool] = False) -> List[OnsetMatch]:
         valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
         matches = []
         used_live_indices = set()
@@ -117,7 +117,7 @@ class OnsetDTWAnalyzer:
                     print(f"Diferencia ajustada: {diff_adj:.2f} ms")
                     print(f"Clasificación: {classification.value}")
                 
-                match = OnsetMatchClassified(
+                match = OnsetMatch(
                     ref_onset=ref_onset,
                     live_onset=live_onset,
                     ref_pitch=ref_pitch,
