@@ -67,11 +67,16 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
         return
 
     timestamps = False
+    onset_times_seen = set()
 
     df = pd.DataFrame()
     for i, log in enumerate(logs):
         if isinstance(log, NoteMutationDetail):
             onset = np.round(log.onset_timestamp / 1000, 3)
+            if onset in onset_times_seen:
+                continue
+            
+            onset_times_seen.add(onset)
             aux = pd.DataFrame({
                 'onset_type': [log.change_type],
                 'onset_time': [onset],

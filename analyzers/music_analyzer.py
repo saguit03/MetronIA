@@ -15,6 +15,7 @@ from .onset_utils import OnsetUtils
 from .result_visualizer import ResultVisualizer
 from .tempo_analyzer import TempoAnalyzer
 from .visualizer import AudioVisualizer
+import librosa
 
 
 class MusicAnalyzer:
@@ -48,22 +49,24 @@ class MusicAnalyzer:
             mutation_name: Nombre de la mutación para el archivo CSV (opcional)
         """
         audio_ref, audio_live, sr = load_audio_files(reference_path, live_path)
+        trimmed_reference_audio, (reference_start_index, reference_end_index) = librosa.effects.trim(audio_ref)
+        trimmed_live_audio, (live_start_index, live_end_index) = librosa.effects.trim(audio_live)
 
-        distance, wp, wp_s = calculate_warping_path(audio_ref, audio_live, sr,  self.config.hop_length)
+        distance, wp, wp_s = calculate_warping_path(trimmed_reference_audio, trimmed_live_audio, sr,  self.config.hop_length)
 
-        tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(audio_ref, audio_live, sr, reference_tempo)
+        tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(trimmed_reference_audio, trimmed_live_audio, sr, reference_tempo)
 
-        aligned_audio_live = stretch_audio(audio_ref, audio_live, wp_s, sr, self.config.hop_length, save_name="aligned_audio", save_dir=save_dir)
+        aligned_audio_live = stretch_audio(trimmed_reference_audio, trimmed_live_audio, wp_s, sr, self.config.hop_length, save_name="aligned_audio", save_dir=save_dir)
 
-        distance, wp, wp_s = calculate_warping_path(audio_ref, aligned_audio_live, sr,  self.config.hop_length)
+        distance, wp, wp_s = calculate_warping_path(trimmed_reference_audio, aligned_audio_live, sr,  self.config.hop_length)
 
-        beat_result = self.beat_spectrum_analyzer.beat_spectrum(audio_ref, aligned_audio_live, sr)
+        beat_result = self.beat_spectrum_analyzer.beat_spectrum(trimmed_reference_audio, aligned_audio_live, sr)
 
         dtw_onset_result = self.onset_dtw_analyzer.match_onsets_with_dtw(
-            audio_ref, aligned_audio_live, sr, wp, distance
+            trimmed_reference_audio, aligned_audio_live, sr, wp, distance
         )
         
-        segment_result = self.tempo_analyzer.validate_segments(audio_ref, aligned_audio_live, sr)
+        segment_result = self.tempo_analyzer.validate_segments(trimmed_reference_audio, aligned_audio_live, sr)
         
         if save_name:
             if save_dir:
@@ -75,7 +78,6 @@ class MusicAnalyzer:
             fig_timeline, ax = self.visualizer.plot_timeline_onset_errors_detailed(result=dtw_onset_result, save_name="timeline", dir_path=analysis_dir)
             self.result_visualizer.plot_onset_errors_detailed(dtw_onset_result=dtw_onset_result, save_name="onset_errors_detailed", dir_path=analysis_dir)
             OnsetUtils.save_onsets_analysis_to_csv(dtw_onset_result=dtw_onset_result, save_name="analysis", dir_path=analysis_dir, mutation_name=mutation_name)
-              # Cerrar la figura para liberar memoria
             plt.close(fig_timeline)
 
         return {

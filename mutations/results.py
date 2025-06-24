@@ -36,33 +36,26 @@ class MutationResult:
             bool: True si la mutación fue exitosa, False en caso contrario.
         """
         try:
-            # Verificar si la función acepta el parámetro tempo
             import inspect
             sig = inspect.signature(self.function)
 
             if 'tempo' in sig.parameters:
-                # Función acepta tempo como parámetro
                 self.excerpt, logs = self.function(original_excerpt, tempo=tempo)
             else:
-                # Función no acepta tempo
                 self.excerpt, logs = self.function(original_excerpt)
 
             if self.excerpt is not None:
                 self.success = True
-
                 mutation_tempo = self.get_mutation_tempo(tempo)
                 save_mutation_logs_to_csv(logs, output_dir, self.name)
-
-                return True
             else:
                 self.success = False
                 self.error = "Mutation returned None"
-                return False
         except Exception as e:
             self.success = False
             self.error = str(e)
             self.excerpt = None
-            return False
+        return self.success
 
     def set_audio_path(self, path: str):
         """Establece la ruta del archivo de audio generado."""

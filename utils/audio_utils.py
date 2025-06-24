@@ -2,7 +2,11 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import librosa
+import subprocess
+import tempfile
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg') 
 import numpy as np
 import pandas as pd
 import pyrubberband.pyrb as pyrb
@@ -20,12 +24,28 @@ def check_extension(file_path: str, midi_name) -> str:
         audio_path = file_path
     return str(audio_path)
 
+def load_audio(path: str, sr: int = None):
+    path = Path(path)
+    if path.suffix == '.mp3':
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
+            tmp_wav_path = tmp_wav.name
+        result = subprocess.run([
+            "ffmpeg", "-y", "-i", str(path), "-ar", str(sr or 22050), tmp_wav_path
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        if result.returncode != 0:
+            raise RuntimeError(f"❌ Falló la conversión de {path} a WAV con ffmpeg.")
+        audio, sr_loaded = librosa.load(tmp_wav_path, sr=sr)
+        Path(tmp_wav_path).unlink(missing_ok=True)
+        return audio, sr_loaded
+
+    return librosa.load(str(path), sr=sr)
 
 def load_audio_files(reference_path: str, live_path: str) -> Tuple[np.ndarray, np.ndarray, int]:
     """Carga archivos de audio."""
-    reference_audio, sr = librosa.load(reference_path)
+    reference_audio, sr = load_audio(reference_path)
     sr = int(sr)  # Ensure sr is always an int
-    live_audio, _ = librosa.load(live_path, sr=sr)  # Usar mismo sr
+    live_audio, _ = load_audio(live_path, sr=sr)  # Usar mismo sr
 
     return reference_audio, live_audio, sr
 
@@ -38,15 +58,12 @@ def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, 
     wp_s = librosa.frames_to_time(wp, sr=fs, hop_length=hop_length)
     return D, wp, wp_s
 
-
 def sinc(x, wp_s, sample_rate, out_len, n_arrows):
     time_map = [(int(x * sample_rate), int(y * sample_rate)) for (x, y) in wp_s[::len(wp_s) // n_arrows]]
     time_map.append((len(x), out_len))
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
-
 def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
-    #raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::len(wp_s) // n_arrows]]
     raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::n_arrows]]
 
     raw_map.sort(key=lambda pair: pair[0])
@@ -62,7 +79,6 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
             time_map[-1] = (t_in, t_out)
 
     return pyrb.timemap_stretch(x, sample_rate, time_map)
-
 
 def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, save_name, save_dir):
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8, 4))
@@ -85,13 +101,12 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
 
-
 def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows=N_ARROWS,
                   save_name="aligned", save_dir: Optional[str] = "aligned"):
     if save_dir is None:
         save_dir = "aligned"
     aligned = sinc_creciente(y_audio, wp_s, fs, len(x_audio), n_arrows=n_arrows)
-    save_comparative_plot(x_audio, aligned, fs, save_name, save_dir)
+    # save_comparative_plot(x_audio, aligned, fs, save_name, save_dir)
     save_audio(aligned, save_name, save_dir, fs)
     return aligned
 
@@ -140,7 +155,6 @@ def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
         Duración en segundos del audio, o 0.0 si no se puede obtener
     """
     try:
-        # Buscar el archivo de audio de referencia en diferentes ubicaciones posibles
         audio_path = Path("mutts") / f"{midi_name}" / "audios" / f"{midi_name}.wav"
 
         if audio_path.exists():
@@ -156,7 +170,7 @@ def ejemplo():
     hop_length = 1024
     x_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
     y_audio, fs = librosa.load('mutts/audios/Acordai-100_faster_tempo.wav')
-    fs = int(fs)  # Asegurarse de que fs sea un entero
+    fs = int(fs)
     D, wp, wp_s = calculate_warping_path(x_audio, y_audio, fs, hop_length)
     print(len(x_audio), len(y_audio), len(wp), len(wp_s))
     n_arrows = 50

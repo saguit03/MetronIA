@@ -14,11 +14,9 @@ automáticamente por MusicAnalyzer. Este script solo crea un resumen consolidado
 
 import argparse
 import os
-import warnings
 from pathlib import Path
 from typing import Dict, Any, List
 
-import matplotlib
 import pandas as pd
 from tqdm import tqdm
 
@@ -29,7 +27,12 @@ from mutations.midi_utils import save_mutation_complete
 from mutations.validator import run_validation_analysis, generate_average_validation_report, generate_category_validation_reports
 from utils.audio_utils import obtener_audio_de_midi
 
-DEBUG = False
+DEBUG = True
+debug_categories = ["timing_errors"]
+
+# DEFAULT_MIDI = "midi/BlessedMessiahAndTheTowerOfAI.mid"
+DEFAULT_MIDI = "midi/midi_GAPS/1y1wc-fine-aligned.mid"
+FILES_LIMIT = 30
 
 EPILOG = """Ejemplos de uso:
   # Aplicar todas las mutaciones (comportamiento por defecto)
@@ -68,8 +71,8 @@ def metronia_arg_parser():
     midi_group.add_argument(
         '--midi',
         type=str,
-        default="midi/Acordai-110.mid",
-        help='Ruta al archivo MIDI de referencia (default: midi/Acordai-110.mid)'
+        default=DEFAULT_MIDI,
+        help=f"Ruta al archivo MIDI de referencia (default: {DEFAULT_MIDI})"
     )
 
     midi_group.add_argument(
@@ -384,10 +387,6 @@ def get_midi_files_to_process(args) -> List[str]:
 
 def main():
     """Función principal del pipeline."""
-    # Configurar matplotlib para evitar warnings de figuras abiertas
-    matplotlib.rcParams['figure.max_open_warning'] = 0
-    warnings.filterwarnings('ignore', category=RuntimeWarning, message='More than 20 figures have been opened')
-    
     args = metronia_arg_parser()
 
     if args.list_categories:
@@ -395,7 +394,7 @@ def main():
         return
 
     if DEBUG:
-        args.categories = ['timing_errors', 'note_errors']
+        args.categories = debug_categories
 
     midi_files_to_process = get_midi_files_to_process(args)
     if not midi_files_to_process:
@@ -420,8 +419,14 @@ def main():
     mutation_manager = filtrar_mutaciones(args.categories)
 
     midi_progress = tqdm(midi_files_to_process, desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
-
+    cont = 0
     for midi_file_path in midi_progress:
+        if cont >= FILES_LIMIT:
+            tqdm.write(f"⚠️ Límite de archivos alcanzado: {FILES_LIMIT}. Deteniendo procesamiento.")
+            break
+        
+        cont += 1
+        
         try:
             # # Obtener solo el nombre del archivo para mostrar en la barra
             midi_filename = Path(midi_file_path).name

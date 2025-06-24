@@ -89,10 +89,6 @@ def time_shift_mutation(
         Lista de tipos de notas musicales para usar como silencios 
         ('eighth', 'sixteenth', 'quarter', etc.).
 
-    tries : int
-        The number of times to try the degradation before giving up, in the case
-        that the degraded excerpt overlaps.
-
     Returns
     -------
     degraded : pd.DataFrame
@@ -124,18 +120,6 @@ def time_shift_mutation(
     
     mask_later_notes = degraded["onset"] > old_onset
     degraded.loc[mask_later_notes, "onset"] += silence_duration
-
-    # Verificar solapamientos
-    if any(overlaps(degraded, idx) for idx in degraded.index):
-        if tries == 1:
-            logging.warning(TRIES_WARN_MSG)
-            return None
-        return time_shift_mutation(
-            excerpt,
-            tempo=tempo,
-            note_types=note_types,
-            tries=tries - 1,
-        )
 
     degraded = post_process(degraded)
     return degraded, index
@@ -306,9 +290,6 @@ def offset_cut(
     min_duration : int
         The minimum allowed duration for any resulting note.
 
-    tries : int
-        Number of retries in case the shortened note overlaps improperly.
-
     Returns
     -------
     degraded : pd.DataFrame or None
@@ -340,18 +321,6 @@ def offset_cut(
     degraded = excerpt.copy()
     degraded.loc[index, "dur"] = new_dur
 
-    if overlaps(degraded, index):
-        if tries == 1:
-            logging.warning(TRIES_WARN_MSG)
-            return None
-        return offset_cut(
-            excerpt,
-            min_cut=min_cut,
-            max_cut=max_cut,
-            min_duration=min_duration,
-            tries=tries - 1,
-        )
-
     degraded = post_process(degraded)
     return degraded, index
 
@@ -369,11 +338,6 @@ def remove_intermediate_note(excerpt, tries=TRIES_DEFAULT):
     seed : int
         A seed to be supplied to np.random.seed(). None leaves numpy's
         random state unchanged.
-
-    tries : int
-        The number of times to try the degradation before giving up, in the case
-        that the degraded excerpt overlaps. This is not used, but we keep it for
-        consistency.
 
     Returns
     -------
@@ -426,10 +390,6 @@ def note_played_too_soon_mutation(
         Lista de tipos de notas musicales para usar como duración objetivo
         ('eighth', 'sixteenth', 'quarter', etc.).
 
-    tries : int
-        The number of times to try the degradation before giving up, in the case
-        that the degraded excerpt overlaps.
-
     Returns
     -------
     degraded : pd.DataFrame
@@ -479,18 +439,6 @@ def note_played_too_soon_mutation(
     # Verificar que no haya onsets negativos
     if (degraded["onset"] < 0).any():
         logging.warning("Generated negative onsets. Trying again.")
-        if tries == 1:
-            logging.warning(TRIES_WARN_MSG)
-            return None
-        return note_played_too_soon_mutation(
-            excerpt,
-            tempo=tempo,
-            note_types=note_types,
-            tries=tries - 1,
-        )
-
-    # Verificar solapamientos
-    if any(overlaps(degraded, idx) for idx in degraded.index):
         if tries == 1:
             logging.warning(TRIES_WARN_MSG)
             return None

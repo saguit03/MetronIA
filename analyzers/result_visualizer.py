@@ -4,11 +4,10 @@ Visualizador y exportador de resultados del análisis DTW de onsets.
 
 from pathlib import Path
 from typing import Optional
-
+import matplotlib
 import matplotlib.pyplot as plt
-
+matplotlib.use('Agg') 
 from .onset_results import OnsetDTWAnalysisResult
-
 
 class ResultVisualizer:
     """
@@ -24,7 +23,6 @@ class ResultVisualizer:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        # Configurar estilo de matplotlib
         plt.style.use('default')
     
     def plot_onset_errors_detailed(self, dtw_onset_result: OnsetDTWAnalysisResult, 
@@ -60,24 +58,20 @@ class ResultVisualizer:
         ax1.set_title('Distribución de Tipos de Onsets')
         ax1.set_ylabel('Cantidad')
         
-        # Añadir valores encima de las barras
         for bar, count in zip(bars, counts):
             height = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2., height + 0.1,
                     f'{count}', ha='center', va='bottom')
-          # 2. Timeline de onsets
+            
+        # 2. Timeline de onsets
         ax2 = axes[1]
-        
-        # Extraer todos los matches para el timeline
         all_matches = (dtw_onset_result.correct_matches + 
                       dtw_onset_result.late_matches + 
                       dtw_onset_result.early_matches)
-        
         if all_matches:
             ref_times = [m.ref_onset for m in all_matches]
             live_times = [m.live_onset for m in all_matches]
             
-            # Colores según clasificación
             colors_timeline = []
             for match in all_matches:
                 if match in dtw_onset_result.correct_matches:
@@ -88,7 +82,6 @@ class ResultVisualizer:
                     colors_timeline.append('red')
             
             ax2.scatter(ref_times, live_times, c=colors_timeline, alpha=0.7, s=50)
-              # Línea de referencia perfecta
             min_time = min(min(ref_times), min(live_times))
             max_time = max(max(ref_times), max(live_times))
             ax2.plot([min_time, max_time], [min_time, max_time], 'k--', alpha=0.5, label='Timing Perfecto')

@@ -2,7 +2,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
+
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg') 
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -17,49 +20,70 @@ class MutationValidation:
         self.mutations_summary = pd.read_csv(mutations_summary_path)
         self.mutation_dir = Path(mutation_dir)
         self.results = []
-        self.results_by_category = defaultdict(list)  # Para agrupar por categoría
+        self.results_by_category = defaultdict(list)  
 
+    def get_logs_data(self, mutation_name, mutation_category):
+        csv_log_path = self.mutation_dir / "logs" / f"{mutation_name}.csv"
+        if not csv_log_path.exists():
+            print(f"Warning: Log file not found for mutation {mutation_name}")
+            return None
+        return pd.read_csv(csv_log_path)
+    
+    def get_analysis_data(self, mutation_name):
+        midi_name = self.mutation_dir.name.replace('_Mutaciones', '')
+        analysis_csv_path = self.mutation_dir / f"{midi_name}_{mutation_name}" / f"{mutation_name}_analysis.csv"
+        if not analysis_csv_path.exists():
+            print(f"Warning: Analysis CSV not found for mutation {mutation_name}")
+            return None
+        return pd.read_csv(analysis_csv_path)
+        
     def run_validation(self):
         for _, row in self.mutations_summary.iterrows():
             mutation_name = row['mutation_name']
             mutation_category = row['mutation_category']
-
-            csv_log_path = self.mutation_dir / "logs" / f"{mutation_name}.csv"
-
-            if not csv_log_path.exists():
-                print(f"Warning: Log file not found for mutation {mutation_name}")
+            logs_data = self.get_logs_data(mutation_name, mutation_category)
+            analysis_data = self.get_analysis_data(mutation_name)
+            if logs_data is None or analysis_data is None:
                 continue
-
-            ground_truth = pd.read_csv(csv_log_path)
-
-            analysis_results = {
-                'correct': row['correct_matches'],
-                'late': row['late_matches'],
-                'early': row['early_matches'],
-                'missing': row['missing_onsets'],
-                'extra': row['extra_onsets']
-            }
-
-            self.validate_mutation(mutation_name, mutation_category, ground_truth, analysis_results)
-
+            self.validate_mutation(mutation_name, mutation_category, logs_data, analysis_data)
         return self.get_overall_metrics()
 
-    def validate_mutation(self, mutation_name, mutation_category, ground_truth, analysis_results):        # Get the analysis CSV file for this mutation
-        midi_name = self.mutation_dir.name.replace('_Mutaciones', '')
-        analysis_csv_path = self.mutation_dir / f"{midi_name}_{mutation_name}" / f"{mutation_name}_analysis.csv"
-
-        if not analysis_csv_path.exists():
-            print(f"Warning: Analysis CSV not found for mutation {mutation_name}")
+    def validate_mutation(self, mutation_name, mutation_category, logs_data, analysis_data):
+        if logs_data is None or analysis_data is None:
+            print(f"Warning: Missing data for mutation {mutation_name}")
             return
+        
+        # Check if required columns exist
+        if 'onset_type' not in analysis_data.columns:
+            print(f"Warning: 'onset_type' column missing in analysis data for {mutation_name}")
+            return
+            
+        if 'onset_type' not in logs_data.columns:
+            print(f"Warning: 'onset_type' column missing in logs data for {mutation_name}")
+            return
+            
+        y_pred = self.map_onset_types(analysis_data['onset_type'].tolist())
+        
+        # Skip if no data to validate
+        if len(y_pred) == 0:
+            print(f"Warning: No onset data found for mutation {mutation_name}")
+            return
+        
+        if (logs_data['onset_type'] == "tempo").all() or (logs_data['onset_type'] == "articulation").all():
+            y_true = ["correct"] * len(y_pred)
+        else:
+            y_true_raw = self.map_onset_types(logs_data['onset_type'].tolist())
+            min_length = min(len(y_true_raw), len(y_pred))
+            y_true = y_true_raw[:min_length]
+            y_pred = y_pred[:min_length]
+            
+            if len(y_true_raw) != len(analysis_data['onset_type']):
+                print(f"Warning: Length mismatch for mutation {mutation_name}: "
+                      f"logs={len(y_true_raw)}, analysis={len(analysis_data['onset_type'])}")
 
-        analysis_data = pd.read_csv(analysis_csv_path)
-
-        # Extract onset types from ground truth (expected) and analysis (predicted)
-        y_true = self.map_onset_types(ground_truth['onset_type'].tolist())
-        y_pred = self.map_onset_types(analysis_data['onset_type'].tolist())        # Handle length mismatch by truncating to the shorter length
-        min_length = min(len(y_true), len(y_pred))
-        y_true = y_true[:min_length]
-        y_pred = y_pred[:min_length]
+        if len(y_true) == 0 or len(y_pred) == 0:
+            print(f"Warning: Empty validation arrays for mutation {mutation_name}")
+            return
 
         result_data = {
             'mutation_name': mutation_name,
@@ -69,7 +93,6 @@ class MutationValidation:
         }
         
         self.results.append(result_data)
-        # También agregar por categoría
         self.results_by_category[mutation_category].append(result_data)
 
     def map_onset_types(self, onset_types):
@@ -102,6 +125,13 @@ class MutationValidation:
                 "labels": []
             }
 
+        if len(all_true) != len(all_pred):
+            print(f"Warning: Length mismatch in overall metrics: true={len(all_true)}, pred={len(all_pred)}")
+            min_length = min(len(all_true), len(all_pred))
+            all_true = all_true[:min_length]
+            all_pred = all_pred[:min_length]
+            print(f"Truncated to length: {min_length}")
+
         labels = sorted(list(set(all_true + all_pred)))
 
         cm = confusion_matrix(all_true, all_pred, labels=labels)
@@ -119,56 +149,10 @@ class MutationValidation:
             "labels": labels
         }
 
-    def plot_confusion_matrix(self, metrics, output_path):
-        if metrics['confusion_matrix'].size == 0:
-            plt.figure(figsize=(10, 8))
-            plt.text(0.5, 0.5, "No data to generate confusion matrix.",
-                     ha='center', va='center', fontsize=12)
-            plt.title('Confusion Matrix')
-            plt.xticks([])
-            plt.yticks([])
-            plt.savefig(output_path)
-            plt.close()
-            return
-
-        # Calculate total counts for each true label
-        all_true = []
-        all_pred = []
-        for res in self.results:
-            all_true.extend(res['y_true'])
-            all_pred.extend(res['y_pred'])
-
-        # Filter labels to only include those that actually appear in the data
-        present_labels = sorted(list(set(all_true + all_pred)))
-
-        # Count occurrences of each label that actually appears
-        label_counts = {}
-        for label in present_labels:
-            label_counts[label] = all_true.count(label)
-
-        # Filter out labels with zero occurrences in true labels
-        filtered_labels = [label for label in present_labels if label_counts[label] > 0]
-
-        if not filtered_labels:
-            plt.figure(figsize=(10, 8))
-            plt.text(0.5, 0.5, "No valid data to generate confusion matrix.",
-                     ha='center', va='center', fontsize=12)
-            plt.title('Confusion Matrix')
-            plt.xticks([])
-            plt.yticks([])
-            plt.savefig(output_path)
-            plt.close()
-            return
-
-        # Recalculate confusion matrix with only present labels
-        filtered_cm = confusion_matrix(all_true, all_pred, labels=filtered_labels)
-
-        # Create y-axis labels with counts (only for present labels)
-        y_labels_with_counts = [f"{label} (n={label_counts[label]})" for label in filtered_labels]
+    def plot_confusion_matrix(self, cm, labels, output_path):
 
         plt.figure(figsize=(12, 8))
-        sns.heatmap(filtered_cm, annot=True, fmt='d', cmap='Blues',
-                    xticklabels=filtered_labels, yticklabels=y_labels_with_counts)
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
         plt.title('Confusion Matrix')
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
@@ -176,20 +160,14 @@ class MutationValidation:
         plt.savefig(output_path)
         plt.close()
 
-    def generate_validation_report(self, metrics, output_path):
-        report = f"""
-Validation Report
-=================
-Accuracy: {metrics['accuracy']:.4f}
-Precision: {metrics['precision']:.4f}
-Recall: {metrics['recall']:.4f}
-F1-Score: {metrics['f1_score']:.4f}
-"""
-        with open(output_path, 'w') as f:
-            f.write(report)
-
-    def save_validation_results_csv(self, output_path):
-        df = pd.DataFrame(self.results)
+    def save_validation_results_csv(self, validation_result, output_path):
+        data = {
+            'accuracy': [validation_result['accuracy']],
+            'precision': [validation_result['precision']],
+            'recall': [validation_result['recall']],
+            'f1_score': [validation_result['f1_score']],
+        }
+        df = pd.DataFrame(data)
         df.to_csv(output_path, index=False)
 
     def get_metrics_by_category(self) -> Dict[str, Dict[str, float]]:
@@ -215,12 +193,23 @@ F1-Score: {metrics['f1_score']:.4f}
                 continue
                 
             if category == "tempo_errors":
-                all_true = ["correct"] * len(results)
-                all_pred = [result["y_pred"] for result in results if "y_pred" in result]
+                all_true = []
+                all_pred = []
+                for result in results:
+                    y_pred = result.get("y_pred", [])
+                    all_true.extend(["correct"] * len(y_pred))
+                    all_pred.extend(y_pred)
                 labels = ["correct", "faster_tempo", "slower_tempo", "a_lot_faster_tempo", "a_lot_slower_tempo"]
             else:
                 labels = sorted(list(set(all_true + all_pred)))
                 
+            if len(all_true) != len(all_pred):
+                print(f"Warning: Length mismatch in category {category}: true={len(all_true)}, pred={len(all_pred)}")
+                min_length = min(len(all_true), len(all_pred))
+                all_true = all_true[:min_length]
+                all_pred = all_pred[:min_length]
+                print(f"Truncated to length: {min_length}")
+            
             cm = confusion_matrix(all_true, all_pred, labels=labels)
             accuracy = accuracy_score(all_true, all_pred)
             precision = precision_score(all_true, all_pred, average='weighted', zero_division=0)
@@ -236,7 +225,7 @@ F1-Score: {metrics['f1_score']:.4f}
                 "labels": labels,
                 "total_mutations": len(results)
             }
-            
+        
         return category_metrics
 
 def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, float]:
@@ -277,14 +266,11 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
     validation_results_dir.mkdir(exist_ok=True)
 
     # Generar archivos generales
-    confusion_matrix_path = validation_dir / "confusion_matrix.png"
-    validator.plot_confusion_matrix(validation_result, str(confusion_matrix_path))
+    confusion_matrix_path = validation_results_dir / "confusion_matrix.png"
+    validator.plot_confusion_matrix(validation_result["confusion_matrix"], validation_result["labels"], str(confusion_matrix_path))
 
-    validation_report_path = validation_dir / "validation_report.txt"
-    validator.generate_validation_report(validation_result, str(validation_report_path))
-
-    validation_csv_path = validation_dir / "validation_results.csv"
-    validator.save_validation_results_csv(str(validation_csv_path))
+    validation_csv_path = validation_results_dir / "validation_results.csv"
+    validator.save_validation_results_csv(validation_result, str(validation_csv_path))
     
     # Obtener métricas por categoría y generar archivos individuales
     category_metrics = validator.get_metrics_by_category()
@@ -307,26 +293,6 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
         if category_data:
             df_category = pd.DataFrame(category_data)
             df_category.to_csv(category_csv_path, index=False)
-            
-            if VERBOSE_LOGGING:
-                print(f"   📁 Archivo de categoría creado: {category_csv_path}")
-                print(f"      - Exactitud: {metrics['accuracy']:.4f}")
-                print(f"      - F1-Score: {metrics['f1_score']:.4f}")
-                print(f"      - Total mutaciones: {metrics['total_mutations']}")
-
-    if VERBOSE_LOGGING:
-        print(f"\n📊 RESUMEN DE VALIDACIÓN - {midi_name}")
-        print(f"   Total mutaciones analizadas: {len(validator.results)}")
-        
-        print(f"   Precisión global: {validation_result['precision']:.4f}")
-        print(f"   Recall global: {validation_result['recall']:.4f}")
-        print(f"   F1-Score global: {validation_result['f1_score']:.4f}")
-        print(f"   Exactitud global: {validation_result['accuracy']:.4f}")
-
-        print(f"\n📁 Archivos de validación generados:")
-        print(f"   ✅ Matriz de confusión: {confusion_matrix_path}")
-        print(f"   ✅ Reporte detallado: {validation_report_path}")
-        print(f"   ✅ Resultados CSV: {validation_csv_path}")
 
     # Retornar métricas para cálculo de promedio
     return {
@@ -448,18 +414,6 @@ Archivo {i} ({midi_name}):
     validation_csv_path = validation_results_dir / "average_validation_metrics.csv"
     df.to_csv(validation_csv_path, index=False, encoding='utf-8')
 
-    if VERBOSE_LOGGING:
-        print(f"\n" + "=" * 60)
-        print("📊 REPORTE PROMEDIO DE VALIDACIÓN")
-        print("=" * 60)
-        print(f"Archivos procesados: {len(valid_metrics)}")
-        print(f"Categorías analizadas: {categories_info}")
-        print(f"Total mutaciones analizadas: {total_mutations}")
-        print(f"Exactitud promedio: {avg_accuracy:.4f}")
-        print(f"Precisión promedio: {avg_precision:.4f}")
-        print(f"Recall promedio: {avg_recall:.4f}")
-        print(f"F1-Score promedio: {avg_f1_score:.4f}")
-
 
 def generate_category_validation_reports(all_validation_metrics: List[Dict[str, float]],
                                         midi_files_processed: List[str],
@@ -576,15 +530,6 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
             df_category_metrics = pd.DataFrame(category_metrics_data)
             df_category_metrics.to_csv(category_csv_path, index=False, encoding='utf-8')
             
-            if VERBOSE_LOGGING:
-                print(f"📊 Categoría {category}:")
-                print(f"   Exactitud: {accuracy:.4f}")
-                print(f"   Precisión: {precision:.4f}")
-                print(f"   Recall: {recall:.4f}")
-                print(f"   F1-Score: {f1:.4f}")
-                print(f"   Total mutaciones: {sum(len(md['data']) for md in midi_data_list)}")
-                print(f"   Archivo guardado: {category_csv_path}")
-                
         except Exception as e:
             print(f"⚠️ Error calculando métricas para categoría {category}: {e}")
     

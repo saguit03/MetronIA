@@ -39,9 +39,7 @@ def load_midi_with_mido(midi_file_path, bpm=120):
                         duration = temp_time - track_time
                         break
 
-                # Convertir ticks a milisegundos
                 ticks_per_beat = mid.ticks_per_beat
-                # Asumimos 120 BPM por defecto si no se especifica
                 ms_per_tick = (60000 / bpm) / ticks_per_beat
 
                 notes.append({
@@ -66,17 +64,15 @@ def load_midi_with_pretty_midi(midi_file_path):
     for track_idx, instrument in enumerate(midi_data.instruments):
         for note in instrument.notes:
             notes.append({
-                'onset': note.start * 1000,  # Convertir segundos a milisegundos
+                'onset': note.start * 1000,
                 'pitch': note.pitch,
-                'dur': (note.end - note.start) * 1000,  # Duración en milisegundos
+                'dur': (note.end - note.start) * 1000,
                 'velocity': note.velocity,
                 'track': track_idx
             })
 
     df = pd.DataFrame(notes)
-    # Ordenar por tiempo de inicio
     df = df.sort_values('onset').reset_index(drop=True)
-
     return df
 
 
@@ -103,36 +99,27 @@ def save_excerpt_in_midi(excerpt, dir_name, save_name, tempo=120):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     output_filename = Path(save_dir) / f"{save_name}.mid"
 
-    # Crear objeto PrettyMIDI
     midi_data = pretty_midi.PrettyMIDI(initial_tempo=tempo)
-
-    # Agrupar notas por track
     tracks = excerpt.groupby('track') if 'track' in excerpt.columns else [('default', excerpt)]
 
     for track_id, track_notes in tracks:
-        # Crear instrumento (Piano por defecto)
         instrument = pretty_midi.Instrument(program=0, name=f"Track_{track_id}")
 
         for _, note_row in track_notes.iterrows():
-            # Convertir milisegundos a segundos
             start_time = note_row['onset'] / 1000.0
             duration = note_row['dur'] / 1000.0
             end_time = start_time + duration
 
-            # Crear nota MIDI
             note = pretty_midi.Note(
                 velocity=int(note_row['velocity']),
                 pitch=int(note_row['pitch']),
                 start=start_time,
                 end=end_time
             )
-
             instrument.notes.append(note)
-
-        # Agregar instrumento al MIDI
+            
         midi_data.instruments.append(instrument)
-
-    # Guardar archivo
+        
     midi_data.write(str(output_filename))
 
     return output_filename
@@ -164,16 +151,11 @@ def save_mutation_complete(mutation_result: MutationResult, mutation_name, save_
     if not mutation_result.success or mutation_result.excerpt is None:
         raise ValueError("La mutación no fue exitosa o no tiene excerpt válido")
 
-    # Calcular el tempo apropiado para la mutación
     calculated_tempo = mutation_result.get_mutation_tempo(base_tempo)
-
-    # Guardar archivos con el tempo calculado
     audio_path = save_excerpt_in_audio(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name,
                                        sample_rate=sample_rate)
     midi_path = save_excerpt_in_midi(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name,
                                      tempo=calculated_tempo)
-    # print(f"Guardando mutación en audio: {audio_path}, MIDI: {midi_path} con tempo: {calculated_tempo}")
-
     return audio_path, midi_path, calculated_tempo
 
 
@@ -192,10 +174,7 @@ def extract_tempo_from_midi(midi_file_path: str) -> int:
         Tempo en BPM, 120 por defecto si no se puede extraer
     """
     try:
-        # Intentar con pretty_midi primero
         midi_data = pretty_midi.PrettyMIDI(midi_file_path)
-
-        # Obtener cambios de tempo
         tempo_changes = midi_data.get_tempo_changes()
         if len(tempo_changes) > 1 and len(tempo_changes[1]) > 0:
             # Usar el primer tempo encontrado

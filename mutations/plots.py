@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg') 
 
 from mdtk.utils import plot_from_df
 from mutations.config import MUTATIONS_PLOTS_PATH
