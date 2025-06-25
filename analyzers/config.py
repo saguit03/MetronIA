@@ -5,6 +5,7 @@ Configuración para el análisis de audio musical.
 from dataclasses import dataclass
 
 VERBOSE_LOGGING = False
+TOLERANCE_MS = 0.1
 
 @dataclass
 class AudioAnalysisConfig:
@@ -16,5 +17,5 @@ class AudioAnalysisConfig:
     compas_duration: float = 2.0
     beat_spectrum_threshold: float = 0.2
     plot_dpi: int = 300
-    tolerance_ms: float = 0.1
+    tolerance_ms: float = TOLERANCE_MS
     round_decimals: int = 1

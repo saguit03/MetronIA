@@ -12,7 +12,7 @@ import pandas as pd
 import pyrubberband.pyrb as pyrb
 import scipy.io.wavfile as wavfile
 
-N_ARROWS = 10  # Número de flechas para la visualización
+N_SYNC_POINTS = 10  # Número de puntos de sincronización para la alineación
 
 def check_extension(file_path: str, midi_name) -> str:
     if Path(file_path).suffix.lower() == '.mid':
@@ -44,9 +44,8 @@ def load_audio(path: str, sr: int = None):
 def load_audio_files(reference_path: str, live_path: str) -> Tuple[np.ndarray, np.ndarray, int]:
     """Carga archivos de audio."""
     reference_audio, sr = load_audio(reference_path)
-    sr = int(sr)  # Ensure sr is always an int
-    live_audio, _ = load_audio(live_path, sr=sr)  # Usar mismo sr
-
+    sr = int(sr)
+    live_audio, _ = load_audio(live_path, sr=sr)
     return reference_audio, live_audio, sr
 
 
@@ -58,13 +57,13 @@ def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, 
     wp_s = librosa.frames_to_time(wp, sr=fs, hop_length=hop_length)
     return D, wp, wp_s
 
-def sinc(x, wp_s, sample_rate, out_len, n_arrows):
-    time_map = [(int(x * sample_rate), int(y * sample_rate)) for (x, y) in wp_s[::len(wp_s) // n_arrows]]
+def sinc(x, wp_s, sample_rate, out_len, n_sync_points):
+    time_map = [(int(x * sample_rate), int(y * sample_rate)) for (x, y) in wp_s[::len(wp_s) // n_sync_points]]
     time_map.append((len(x), out_len))
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
-def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
-    raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::n_arrows]]
+def sinc_creciente(x, wp_s, sample_rate, out_len, n_sync_points):
+    raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::n_sync_points]]
 
     raw_map.sort(key=lambda pair: pair[0])
     raw_map.append((len(x), out_len))
@@ -80,11 +79,11 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_arrows):
 
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
-def save_comparative_plot(x_audio: np.ndarray, y_audio: np.ndarray, fs: int, save_name, save_dir):
+def save_comparative_plot(reference_audio: np.ndarray, live_audio: np.ndarray, fs: int, save_name, save_dir):
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8, 4))
-    librosa.display.waveshow(x_audio, sr=fs, ax=ax2)
+    librosa.display.waveshow(reference_audio, sr=fs, ax=ax2)
     ax2.set(title='Referencia')
-    librosa.display.waveshow(y_audio, sr=fs, ax=ax1)
+    librosa.display.waveshow(live_audio, sr=fs, ax=ax1)
     ax1.set(title='Alineado')
     plt.tight_layout()
     Path(save_dir).mkdir(parents=True, exist_ok=True)
@@ -101,13 +100,12 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
 
-def stretch_audio(x_audio: np.ndarray, y_audio: np.ndarray, wp_s, fs: int, hop_length: int, n_arrows=N_ARROWS,
+def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, hop_length: int, n_sync_points=N_SYNC_POINTS,
                   save_name="aligned", save_dir: Optional[str] = "aligned"):
-    if save_dir is None:
-        save_dir = "aligned"
-    aligned = sinc_creciente(y_audio, wp_s, fs, len(x_audio), n_arrows=n_arrows)
-    # save_comparative_plot(x_audio, aligned, fs, save_name, save_dir)
-    save_audio(aligned, save_name, save_dir, fs)
+    
+    distance, wp, wp_s = calculate_warping_path(reference_audio, live_audio, sr, hop_length)
+    aligned = sinc_creciente(live_audio, wp_s, sr, len(reference_audio), n_sync_points=n_sync_points)
+    save_audio(aligned, save_name, save_dir, sr)
     return aligned
 
 
@@ -167,16 +165,16 @@ def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
 
 def ejemplo():
     hop_length = 1024
-    x_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
-    y_audio, fs = librosa.load('mutts/audios/Acordai-100_faster_tempo.wav')
+    reference_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
+    live_audio, fs = librosa.load('mutts/audios/Acordai-100_faster_tempo.wav')
     fs = int(fs)
-    D, wp, wp_s = calculate_warping_path(x_audio, y_audio, fs, hop_length)
-    print(len(x_audio), len(y_audio), len(wp), len(wp_s))
-    n_arrows = 50
-    aligned = sinc_creciente(y_audio, wp_s, fs, len(x_audio), n_arrows=n_arrows)
+    D, wp, wp_s = calculate_warping_path(reference_audio, live_audio, fs, hop_length)
+    print(len(reference_audio), len(live_audio), len(wp), len(wp_s))
+    n_sync_points = 50
+    aligned = sinc_creciente(live_audio, wp_s, fs, len(reference_audio), n_sync_points=n_sync_points)
     save_name = 'aligned_audios'
     save_dir = 'z/aligned'
-    save_comparative_plot(x_audio, aligned, fs, save_name, save_dir)
+    save_comparative_plot(reference_audio, aligned, fs, save_name, save_dir)
     save_audio(aligned, save_name, save_dir, fs)
 
 

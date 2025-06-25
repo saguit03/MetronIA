@@ -14,15 +14,14 @@ Este paquete contiene clases especializadas para análisis de audio musical:
 - music_analyzer: Analizador principal que integra todos los componentes
 """
 
-from .beat_spectrum_analyzer import BeatSpectrumAnalyzer
+from .beat_spectrum_analyzer import BeatSpectrumAnalyzer, BeatSpectrumResult
 from .config import AudioAnalysisConfig
 from .feature_extractor import AudioFeatureExtractor
 from .music_analyzer import MusicAnalyzer
 from .onset_dtw_analyzer import OnsetDTWAnalyzer
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatch
-from .results import BeatSpectrumResult, TempoAnalysisResult
-from .tempo_analyzer import TempoAnalyzer
-from .visualizer import AudioVisualizer
+from .tempo_analyzer import TempoAnalyzer, TempoAnalysisResult
+from .visualizer import Visualizer
 
 __all__ = [
     'AudioAnalysisConfig',
@@ -34,6 +33,6 @@ __all__ = [
     'OnsetDTWAnalyzer',
     'TempoAnalyzer',
     'BeatSpectrumAnalyzer',
-    'AudioVisualizer',
+    'Visualizer',
     'MusicAnalyzer',
 ]

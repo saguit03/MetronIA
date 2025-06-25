@@ -11,7 +11,7 @@ MAX_DUR = 1000
 MIN_VELOCITY = 50
 MAX_VELOCITY = 127
 ARTICULATED_LEGATO = {
-    "max_gap": 2000,  # 2 seconds
+    "max_gap": 2000,
     "max_notes": 4
 }
 ARTICULATED_STACCATO = 0.1

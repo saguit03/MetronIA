@@ -78,7 +78,6 @@ class MutationResult:
         if not self.success or self.excerpt is None:
             return base_tempo
 
-        # Detectar tipo de mutación de tempo
         mutation_type = self._detect_tempo_mutation_type()
 
         if mutation_type is None:
@@ -126,25 +125,18 @@ class MutationResult:
         )
 
         tempo_factors = {
-            'faster': FASTER,  # 1.2
-            'a_lot_faster': A_LOT_FASTER,  # 1.5
-            'slower': SLOWER,  # 0.8
-            'a_lot_slower': A_LOT_SLOWER,  # 0.5
-            'accelerando': ACCELERANDO,  # 1.3 (tempo final)
-            'ritardando': RITARDANDO,  # 0.7 (tempo final)
-            'fluctuation': 1.0  # Tempo promedio (sin cambio base)
+            'faster': FASTER,
+            'a_lot_faster': A_LOT_FASTER,
+            'slower': SLOWER,
+            'a_lot_slower': A_LOT_SLOWER,
+            'accelerando': ACCELERANDO,
+            'ritardando': RITARDANDO,
+            'fluctuation': 1.0
         }
 
         factor = tempo_factors.get(mutation_type, 1.0)
+        calculated_tempo = int(base_tempo * factor)
 
-        # Para accelerando y ritardando, usar el tempo final
-        if mutation_type in ['accelerando', 'ritardando']:
-            calculated_tempo = int(base_tempo * factor)
-        else:
-            # Para cambios constantes de tempo
-            calculated_tempo = int(base_tempo * factor)
-
-        # Asegurar que el tempo esté en un rango razonable (40-200 BPM)
         return max(40, min(200, calculated_tempo))
 
     def is_tempo_mutation(self) -> bool:

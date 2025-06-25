@@ -19,58 +19,11 @@ class OnsetDTWAnalyzer:
     
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
-        # Parámetros específicos para DTW y pitch matching
-        self.pitch_weight = 0.7  # Peso de la similitud de altura
-        self.time_weight = 0.3   # Peso de la proximidad temporal
-        self.max_pitch_diff = 2.0  # Diferencia máxima de semitonos
-        self.tolerance_ms = config.tolerance_ms  # Tolerancia en milisegundos para emparejamiento
-            
-    def invalid_onsets(self, onsets_ref, pitches_ref, onsets_live, pitches_live):
-        return OnsetDTWAnalysisResult(
-            matches=[],
-            missing_onsets=[(t, p) for t, p in zip(onsets_ref, pitches_ref)],
-            extra_onsets=[(t, p) for t, p in zip(onsets_live, pitches_live)],
-            dtw_path=np.array([]),
-            alignment_cost=float('inf'),
-            tolerance_ms=self.tolerance_ms
-        )
-    
-    def validate_onsets(self, onsets_ref: np.ndarray, pitches_ref: np.ndarray,
-                        onsets_live: np.ndarray, pitches_live: np.ndarray):
-        
-        # Verificaciones de validez más exhaustivas
-        if len(onsets_ref) == 0 or len(onsets_live) == 0:
-            return self.invalid_onsets(onsets_ref, pitches_ref, onsets_live, pitches_live)
-        
-        # Verificar que no haya valores NaN o infinitos en los onsets y pitches
-        if (np.any(np.isnan(onsets_ref)) or np.any(np.isinf(onsets_ref)) or
-            np.any(np.isnan(onsets_live)) or np.any(np.isinf(onsets_live)) or
-            np.any(np.isnan(pitches_ref)) or np.any(np.isinf(pitches_ref)) or
-            np.any(np.isnan(pitches_live)) or np.any(np.isinf(pitches_live))):
-            
-            print("⚠️ Valores NaN o infinitos detectados en onsets o pitches")
-            print(f"   Onsets ref: NaN={np.any(np.isnan(onsets_ref))}, Inf={np.any(np.isinf(onsets_ref))}")
-            print(f"   Onsets live: NaN={np.any(np.isnan(onsets_live))}, Inf={np.any(np.isinf(onsets_live))}")
-            print(f"   Pitches ref: NaN={np.any(np.isnan(pitches_ref))}, Inf={np.any(np.isinf(pitches_ref))}")
-            print(f"   Pitches live: NaN={np.any(np.isnan(pitches_live))}, Inf={np.any(np.isinf(pitches_live))}")
-            
-            # Filtrar valores válidos
-            valid_ref_mask = ~(np.isnan(onsets_ref) | np.isinf(onsets_ref) | 
-                              np.isnan(pitches_ref) | np.isinf(pitches_ref))
-            valid_live_mask = ~(np.isnan(onsets_live) | np.isinf(onsets_live) | 
-                               np.isnan(pitches_live) | np.isinf(pitches_live))
-            
-            onsets_ref = onsets_ref[valid_ref_mask]
-            pitches_ref = pitches_ref[valid_ref_mask]
-            onsets_live = onsets_live[valid_live_mask]
-            pitches_live = pitches_live[valid_live_mask]
-            
-            print(f"   Después del filtrado: {len(onsets_ref)} onsets ref, {len(onsets_live)} onsets live")
-            
-            # Verificar nuevamente si quedan onsets válidos
-        if len(onsets_ref) == 0 or len(onsets_live) == 0:
-            return self.invalid_onsets(onsets_ref, pitches_ref, onsets_live, pitches_live)
-    
+        self.pitch_weight = 0.7
+        self.time_weight = 0.3
+        self.max_pitch_diff = 2.0
+        self.tolerance_ms = config.tolerance_ms
+
     def dtw_valid_path(self, dtw_path: np.ndarray, onsets_ref: np.ndarray, onsets_live: np.ndarray, verbose: Optional[bool] = False) -> List[Tuple[int, int]]:
         max_ref_idx = len(onsets_ref) - 1
         max_live_idx = len(onsets_live) - 1
@@ -144,7 +97,7 @@ class OnsetDTWAnalyzer:
 
 
     def match_onsets_with_dtw(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
-                             sr: int, dtw_path, alignment_cost) -> OnsetDTWAnalysisResult:
+                             sr: int, dtw_path, alignment_cost, tempo_ref, tempo_live) -> OnsetDTWAnalysisResult:
         """
         Empareja onsets usando DTW y similitud de altura.
         
@@ -156,9 +109,8 @@ class OnsetDTWAnalyzer:
         Returns:
             Resultado del análisis con emparejamientos y ajustes temporales        
 """        
-        # Detectar onsets y pitches
-        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(audio_ref, sr)
-        onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(audio_live, sr)
+        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(audio_ref, sr, tempo_ref)
+        onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(audio_live, sr, tempo_live)
         
         matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref, pitches_ref=pitches_ref, onsets_live=onsets_live, pitches_live=pitches_live)
 
@@ -170,59 +122,3 @@ class OnsetDTWAnalyzer:
             alignment_cost=alignment_cost,
             tolerance_ms=self.tolerance_ms
         )
-    
-    def get_alignment_adjustments(self, result: OnsetDTWAnalysisResult) -> Dict[str, List[float]]:
-        """
-        Extrae los ajustes temporales necesarios para alinear el audio en vivo.
-        
-        Args:
-            result: Resultado del análisis DTW
-            
-        Returns:
-            Diccionario con estadísticas de los ajustes temporales        """
-        # Obtener todos los matches de la lista unificada
-        adjustments = [match.time_adjustment for match in result.matches]
-        
-        if not adjustments:
-            return {
-                'adjustments_ms': [],
-                'mean_adjustment': 0.0,
-                'std_adjustment': 0.0,
-                'max_adjustment': 0.0,
-                'min_adjustment': 0.0
-            }
-        
-        return {
-            'adjustments_ms': adjustments,
-            'mean_adjustment': np.mean(adjustments),
-            'std_adjustment': np.std(adjustments),
-            'max_adjustment': np.max(adjustments),
-            'min_adjustment': np.min(adjustments)
-        }
-    
-    def analyze_pitch_accuracy(self, result: OnsetDTWAnalysisResult) -> Dict[str, float]:
-        """
-        Analiza la precisión de altura en los emparejamientos.
-        
-        Args:
-            result: Resultado del análisis DTW
-            
-        Returns:
-            Diccionario con métricas de precisión de altura
-        """
-        if not result.matches:
-            return {
-                'mean_pitch_similarity': 0.0,
-                'pitch_accuracy_rate': 0.0,
-                'perfect_pitch_matches': 0
-            }
-        
-        similarities = [match.pitch_similarity for match in result.matches]
-        perfect_matches = sum(1 for s in similarities if s > 0.95)
-        
-        return {
-            'mean_pitch_similarity': np.mean(similarities),
-            'pitch_accuracy_rate': perfect_matches / len(similarities),
-            'perfect_pitch_matches': perfect_matches
-        }
-    

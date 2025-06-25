@@ -31,7 +31,6 @@ def load_midi_with_mido(midi_file_path, bpm=120):
         for msg in track:
             track_time += msg.time
             if msg.type == 'note_on' and msg.velocity > 0:
-                # Buscar el note_off correspondiente
                 temp_time = track_time
                 duration = 0
                 for future_msg in track[track.index(msg) + 1:]:
@@ -179,11 +178,9 @@ def extract_tempo_from_midi(midi_file_path: str) -> int:
         midi_data = pretty_midi.PrettyMIDI(midi_file_path)
         tempo_changes = midi_data.get_tempo_changes()
         if len(tempo_changes) > 1 and len(tempo_changes[1]) > 0:
-            # Usar el primer tempo encontrado
             initial_tempo = tempo_changes[1][0]  # tempo_changes[1] contiene los valores de tempo
             return int(initial_tempo)
 
-        # Si no hay cambios de tempo explícitos, intentar calcular desde el BPM estimado
         if hasattr(midi_data, 'estimate_tempo'):
             estimated_tempo = midi_data.estimate_tempo()
             return int(estimated_tempo)
@@ -192,10 +189,8 @@ def extract_tempo_from_midi(midi_file_path: str) -> int:
         pass
 
     try:
-        # Fallback con mido
         mid = mido.MidiFile(midi_file_path)
 
-        # Buscar eventos de tempo en todas las pistas
         for track in mid.tracks:
             for msg in track:
                 if msg.type == 'set_tempo':
@@ -203,9 +198,7 @@ def extract_tempo_from_midi(midi_file_path: str) -> int:
                     bpm = 60000000 / msg.tempo
                     return int(bpm)
 
-        # Si no se encuentra tempo explícito, usar ticks_per_beat para estimación
         if mid.ticks_per_beat:
-            # Estimar basándose en la densidad de notas (heurística simple)
             total_notes = 0
             total_time_ticks = 0
 
@@ -219,16 +212,13 @@ def extract_tempo_from_midi(midi_file_path: str) -> int:
                 total_time_ticks = max(total_time_ticks, track_time)
 
             if total_notes > 0 and total_time_ticks > 0:
-                # Heurística simple: estimar BPM basado en densidad de notas
                 beats_estimated = total_time_ticks / mid.ticks_per_beat
                 if beats_estimated > 0:
-                    # Asumir duración razonable y calcular BPM
-                    estimated_duration_seconds = beats_estimated * 0.5  # Asumir ~120 BPM como base
+                    estimated_duration_seconds = beats_estimated * 0.5
                     estimated_bpm = (beats_estimated * 60) / estimated_duration_seconds
                     return max(60, min(200, int(estimated_bpm)))
 
     except Exception:
         pass
 
-    # Fallback: tempo estándar
-    return 120
+    return 120 # Por defecto

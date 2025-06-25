@@ -13,7 +13,7 @@
 # from pydub.utils import make_chunks
 # import pyaudio
 # from threading import Lock, Thread
-# from .visualizer import AudioVisualizer
+# from .visualizer import Visualizer
 
 # CHUNK_SIZE = 100
 # REDUCTION_FACTOR = 100
@@ -121,5 +121,5 @@
 
 # if __name__ == '__main__':
 #     import json
-#     fig, ax = AudioVisualizer().plot_timeline_onset_errors_detailed(data)
+#     fig, ax = Visualizer().plot_onset_timeline(data)
 #     play_audio(sys.argv[1], fig, ax)

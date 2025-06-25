@@ -53,7 +53,6 @@ class MutationValidation:
             print(f"Warning: Missing data for mutation {mutation_name}")
             return
         
-        # Check if required columns exist
         if 'onset_type' not in analysis_data.columns:
             print(f"Warning: 'onset_type' column missing in analysis data for {mutation_name}")
             return
@@ -64,7 +63,6 @@ class MutationValidation:
             
         y_pred = self.map_onset_types(analysis_data['onset_type'].tolist())
         
-        # Skip if no data to validate
         if len(y_pred) == 0:
             print(f"Warning: No onset data found for mutation {mutation_name}")
             return
@@ -232,8 +230,8 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
         print("🔍 ANÁLISIS DE VALIDACIÓN DEL ANALIZADOR")
         print("=" * 60)
     
-    mutations_summary_path = results_dir / f"{midi_name}_Mutaciones" / "mutations_summary.csv"
     mutations_dir = results_dir / f"{midi_name}_Mutaciones"
+    mutations_summary_path = mutations_dir / "mutations_summary.csv"
     
     if not mutations_summary_path.exists():
         print(f"⚠️ No se encontró el archivo de resumen de mutaciones: {mutations_summary_path}")
@@ -246,24 +244,14 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
     
     validation_result = validator.run_validation()
 
-    # Crear directorio principal de validación
-    validation_dir = results_dir / f"{midi_name}_Validation"
-    validation_dir.mkdir(exist_ok=True)
-    
-    # Crear subdirectorio Validation_Results
-    validation_results_dir = validation_dir / "Validation_Results"
+    validation_results_dir = mutations_dir / "Validation_Results"
     validation_results_dir.mkdir(exist_ok=True)
 
-    # Generar archivos generales
     confusion_matrix_path = validation_results_dir / "confusion_matrix.png"
     validator.plot_confusion_matrix(validation_result["confusion_matrix"], validation_result["labels"], str(confusion_matrix_path))
 
-    validation_csv_path = validation_results_dir / "validation_results.csv"
-    validator.save_validation_results_csv(validation_result, str(validation_csv_path))
-      # Obtener métricas por categoría
     category_metrics = validator.get_metrics_by_category()
     
-    # Crear archivo Validation_results.csv con métricas por categoría
     validation_by_category_data = []
     
     for category, metrics in category_metrics.items():
@@ -277,7 +265,6 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
             'total_mutaciones': metrics['total_mutations']
         })
     
-    # Agregar fila de promedio general
     validation_by_category_data.append({
         'archivo': midi_name,
         'categoria': 'PROMEDIO',
@@ -288,15 +275,9 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
         'total_mutaciones': len(validator.results)
     })
     
-    # Guardar archivo Validation_results.csv
     df_validation_results = pd.DataFrame(validation_by_category_data)
-    validation_results_path = validation_results_dir / "Validation_results.csv"
+    validation_results_path = validation_results_dir / "validation_results_by_category.csv"
     df_validation_results.to_csv(validation_results_path, index=False)
-    
-    if VERBOSE_LOGGING:
-        print(f"   📁 Archivo de validación por categorías creado: {validation_results_path}")
-        for category, metrics in category_metrics.items():
-            print(f"      - {category}: Exactitud={metrics['accuracy']:.4f}, F1={metrics['f1_score']:.4f}")
 
     for category, metrics in category_metrics.items():
         category_data = []
@@ -338,24 +319,22 @@ def generate_average_validation_report(all_validation_metrics: List[Dict[str, fl
         print("⚠️ No hay métricas de validación para calcular promedios")
         return
 
-    # Filtrar métricas válidas (no vacías)
     valid_metrics = [m for m in all_validation_metrics if m]
 
     if not valid_metrics:
         print("⚠️ No hay métricas válidas para calcular promedios")
-        return    # Calcular promedios
+        return
+    
     avg_accuracy = round(sum(m['accuracy'] for m in valid_metrics) / len(valid_metrics), 4)
     avg_precision = round(sum(m['precision'] for m in valid_metrics) / len(valid_metrics), 4)
     avg_recall = round(sum(m['recall'] for m in valid_metrics) / len(valid_metrics), 4)
     avg_f1_score = round(sum(m['f1_score'] for m in valid_metrics) / len(valid_metrics), 4)
     total_mutations = sum(m['total_mutations'] for m in valid_metrics)
 
-    # Información sobre categorías
     categories_info = "Todas las categorías"
     if categories_filter:
         categories_info = ", ".join(categories_filter)
 
-    # Generar reporte promedio
     report_content = f"""
 REPORTE PROMEDIO DE VALIDACIÓN - METRONIA
 {'=' * 60}
@@ -389,11 +368,9 @@ Archivo {i} ({midi_name}):
   - F1-Score: {metrics['f1_score']:.4f}
   - Mutaciones: {metrics['total_mutations']}
 """
-    # Crear directorio Validation_Results
     validation_results_dir = Path(output_dir) / "Validation_Results"
     validation_results_dir.mkdir(exist_ok=True)
     
-    # Guardar reporte en Validation_Results únicamente
     report_path = validation_results_dir / "average_validation_report.txt"
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(report_content)
@@ -404,7 +381,7 @@ Archivo {i} ({midi_name}):
         'precision': avg_precision,
         'recall': avg_recall,
         'f1_score': avg_f1_score,
-        'duración': total_mutations,  # Para PROMEDIO, guardar número total de mutaciones
+        'duración': total_mutations,
         'total_onsets_ref': sum(
             get_total_onsets_ref(Path(f).stem, output_dir) for f in midi_files_processed[:len(valid_metrics)])
     })
@@ -424,7 +401,6 @@ Archivo {i} ({midi_name}):
             'total_onsets_ref': total_onsets_ref
         })
     
-    # Guardar CSV de métricas promedio solo en Validation_Results
     df = pd.DataFrame(csv_data)
     validation_csv_path = validation_results_dir / "average_validation_by_file.csv"
     df.to_csv(validation_csv_path, index=False, encoding='utf-8')
@@ -446,15 +422,12 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
     from collections import defaultdict
     from datetime import datetime
     
-    # Recolectar métricas por categoría de todos los archivos usando Validation_results.csv
     category_data = defaultdict(list)
     
     for midi_file in midi_files_processed:
         midi_name = Path(midi_file).stem
         
-        # Buscar el archivo Validation_results.csv
-        validation_dir = Path(output_dir) / f"{midi_name}_Validation"
-        validation_results_file = validation_dir / "Validation_Results" / "Validation_results.csv"
+        validation_results_file = Path(output_dir) / f"{midi_name}_Mutaciones" / "Validation_Results" / "validation_results_by_category.csv"
         
         if not validation_results_file.exists():
             if VERBOSE_LOGGING:
@@ -464,7 +437,6 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
         try:
             df = pd.read_csv(validation_results_file)
             if not df.empty:
-                # Filtrar solo las filas que no sean promedios generales
                 df_categories = df[df['categoria'] != 'PROMEDIO']
                 
                 for _, row in df_categories.iterrows():
@@ -480,21 +452,17 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
         except Exception as e:
             print(f"⚠️ Error leyendo {validation_results_file}: {e}")
     
-    # Crear directorio principal de validación de categorías
     main_validation_dir = Path(output_dir) / "Validation_Results"
     main_validation_dir.mkdir(exist_ok=True)
     
-    # Generar archivos consolidados por categoría
     for category, category_results in category_data.items():
         if not category_results:
             continue
             
-        # Crear CSV consolidado para esta categoría
         category_csv_path = main_validation_dir / f"{category}_validation.csv"
         
         category_metrics_data = []
         
-        # Agregar datos de cada archivo
         for result in category_results:
             category_metrics_data.append({
                 'archivo': result['midi_name'],
@@ -506,7 +474,6 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
                 'total_mutaciones': result['total_mutaciones']
             })
         
-        # Calcular y añadir fila de promedio
         if category_metrics_data:
             avg_exactitud = round(sum(r['exactitud'] for r in category_results) / len(category_results), 4)
             avg_precision = round(sum(r['precision'] for r in category_results) / len(category_results), 4)
@@ -536,7 +503,6 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
                 print(f"   Total mutaciones: {total_mutaciones_sum}")
                 print(f"   Archivo guardado: {category_csv_path}")
     
-    # Generar archivo consolidado con métricas promedio por categoría
     if category_data:
         category_summary_data = []
         
@@ -560,7 +526,6 @@ def generate_category_validation_reports(all_validation_metrics: List[Dict[str, 
                 'archivos_procesados': len(category_results)
             })
         
-        # Guardar archivo de resumen por categorías
         if category_summary_data:
             summary_csv_path = main_validation_dir / "average_validation_by_category.csv"
             df_summary = pd.DataFrame(category_summary_data)
@@ -594,7 +559,6 @@ def get_total_onsets_ref(midi_name: str, output_dir: str) -> int:
         df = pd.read_csv(mutations_summary_path)
 
         if 'total_onsets_ref' in df.columns and not df.empty:
-            # Obtener el valor más alto de 'total_onsets_ref' si hay múltiples filas
             return int(max(df['total_onsets_ref']))
         else:
             print(f"⚠️ Columna 'total_onsets_ref' no encontrada en mutations_summary.csv para {midi_name}")

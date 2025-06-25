@@ -20,13 +20,14 @@ Ejemplos:
 
 import os
 import sys
-import warnings
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from analyzers import MusicAnalyzer
-# from analyzers.timeline import play_audio
+
+DEBUG = False
 
 def validate_arguments() -> tuple[str, str, Optional[str]]:
     """
@@ -47,7 +48,6 @@ def validate_arguments() -> tuple[str, str, Optional[str]]:
     ruta_referencia = sys.argv[1]
     ruta_en_vivo = sys.argv[2]
 
-    # Validar que los archivos existen
     if not os.path.exists(ruta_referencia):
         print(f"❌ Error: El archivo de referencia '{ruta_referencia}' no existe")
         sys.exit(1)
@@ -57,11 +57,9 @@ def validate_arguments() -> tuple[str, str, Optional[str]]:
         sys.exit(1)
 
     nombre_analisis = sys.argv[3] if len(sys.argv) == 4 else Path(ruta_referencia).stem.split('_')[0]
-    # Validar nombre del análisis si se proporciona
-    if nombre_analisis and not nombre_analisis.replace('_', '').replace('-', '').isalnum():
-        print(f"❌ Error: El nombre del análisis '{nombre_analisis}' contiene caracteres no válidos")
-        print("💡 Use solo letras, números, guiones (-) y guiones bajos (_)")
-        sys.exit(1)
+    
+    if nombre_analisis:
+        nombre_analisis = re.sub(r'[^a-zA-Z0-9_-]', '_', nombre_analisis)
 
     return ruta_referencia, ruta_en_vivo, nombre_analisis
 
@@ -76,36 +74,28 @@ def generate_analysis_name(live_path: str) -> str:
     Returns:
         Nombre generado para el análisis
     """
-    # Obtener nombre del archivo sin extensión
     live_name = Path(live_path).stem
-
-    # Obtener timestamp actual
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # Combinar para crear nombre único
     analysis_name = f"{live_name}_{timestamp}"
 
     return analysis_name
 
 
-def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Dict[str, Any]:
-    """
-    Realiza el análisis completo entre los dos archivos de audio.
-    
-    Args:
-        ref_path: Ruta al archivo de referencia
-        live_path: Ruta al archivo en vivo
-        analysis_name: Nombre del análisis
-        
-    Returns:
-        Diccionario con todos los resultados del análisis
-    """
+def main():
+    """Función principal del analizador."""
 
+    print("=" * 70)
+    print("🎵 MetronIA - Análisis de Sincronía de ritmos en audios")
+    print("=" * 70)
+    if DEBUG:
+        ref_path, live_path, analysis_name = "audio/veneciana-reference.mp3", "audio/veneciana-live.mp3", "veneciana"
+    else:
+        ref_path, live_path, analysis_name = validate_arguments()
+    
     try:
-        # Crear analizador
         analyzer = MusicAnalyzer()
 
-        save_dir = Path(f"results_{analysis_name}")
+        save_dir = Path(f"results") / analysis_name
         save_dir.mkdir(parents=True, exist_ok=True)
 
         analysis_result = analyzer.comprehensive_analysis(
@@ -123,54 +113,6 @@ def analyze_audio_files(ref_path: str, live_path: str, analysis_name: str) -> Di
         import traceback
         traceback.print_exc()
         sys.exit(1)
-
-
-def move_plots_to_analysis_directory(analysis_name: str, analysis_dir: Path):
-    """
-    Mueve las gráficas generadas al directorio de análisis.
-    
-    Args:
-        analysis_name: Nombre del análisis usado para las gráficas
-        analysis_dir: Directorio de destino
-    """
-    print(f"📊 Organizando gráficas de análisis...")
-
-    plots_dir = Path("analysis_plots")
-    if not plots_dir.exists():
-        print(f"⚠️ No se encontró el directorio de gráficas: {plots_dir}")
-        return
-
-    # Buscar archivos que contengan el nombre del análisis
-    moved_files = 0
-    for plot_file in plots_dir.glob(f"*{analysis_name}*"):
-        if plot_file.is_file():
-            destination = analysis_dir / plot_file.name
-            try:
-                plot_file.rename(destination)
-                moved_files += 1
-                print(f"   📈 Movido: {plot_file.name}")
-            except Exception as e:
-                print(f"   ⚠️ No se pudo mover {plot_file.name}: {e}")
-
-    if moved_files > 0:
-        print(f"✅ {moved_files} gráfica(s) movida(s) a: {analysis_dir}")
-    else:
-        print(f"⚠️ No se encontraron gráficas para mover")
-
-
-def main():
-    """Función principal del analizador."""
-
-    print("=" * 70)
-    print("🎵 MetronIA - Análisis de Sincronía de ritmos en audios")
-    print("=" * 70)
-
-    ref_path, live_path, analysis_name = validate_arguments()
-    
-    analysis_result = analyze_audio_files(ref_path, live_path, analysis_name)
-
-    # Note: fig and ax are no longer returned to prevent memory leaks
-    # play_audio(ref_path, analysis_result['fig'], analysis_result['ax'])
 
 if __name__ == "__main__":
     main()

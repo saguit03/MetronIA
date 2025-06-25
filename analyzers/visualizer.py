@@ -7,17 +7,15 @@ from typing import Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 matplotlib.use('Agg') 
 import numpy as np
 
 from .config import AudioAnalysisConfig
 from .onset_results import OnsetDTWAnalysisResult
-from .results import BeatSpectrumResult
+from .beat_spectrum_analyzer import BeatSpectrumResult
 
-
-class AudioVisualizer:
-    """Visualizador de análisis de audio."""
-    
+class Visualizer:
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
     
@@ -40,9 +38,40 @@ class AudioVisualizer:
             fig_path = plots_dir / f"{save_name}.png"
             plt.savefig(fig_path, dpi=self.config.plot_dpi)
         plt.close(fig)
-            
-    def plot_timeline_onset_errors_detailed(self, result: OnsetDTWAnalysisResult, save_name, dir_path) -> Optional[plt.Figure]:
-        """Plotea análisis detallado de errores de onsets."""
+        
+    def plot_onset_distribution(self, dtw_onset_result: OnsetDTWAnalysisResult, save_name: str, 
+                                dir_path: Optional[str] = None) -> str:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        categories = ['Correctos', 'Tarde', 'Adelantados', 'Faltantes', 'Extras']
+        counts = [
+            len(dtw_onset_result.correct_matches),
+            len(dtw_onset_result.late_matches),
+            len(dtw_onset_result.early_matches),
+            len(dtw_onset_result.missing_onsets),
+            len(dtw_onset_result.extra_onsets)
+        ]
+        colors = ['green', 'orange', 'red', 'gray', 'purple']
+        
+        bars = ax.bar(categories, counts, color=colors, alpha=0.7)
+        ax.set_title('Distribución de Tipos de Onsets')
+        ax.set_ylabel('Cantidad')
+        
+        for bar, count in zip(bars, counts):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2., height + 0.5, f'{count}',
+                    ha='center', va='bottom', fontsize=10)
+    
+        plt.tight_layout()
+        
+        output_dir = Path(dir_path)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{save_name}.png"
+        
+        plt.savefig(output_path, dpi=self.config.plot_dpi, bbox_inches='tight')
+        plt.close(fig)
+
+    def plot_onset_timeline(self, result: OnsetDTWAnalysisResult, save_name, dir_path) -> Optional[plt.Figure]:
         fig, ax = plt.subplots(figsize=(14, 3))
         ref_onsets_from_matches = [m.ref_onset for m in result.matches]
         ref_onsets_from_missing = [ref_time for ref_time, _ in result.missing_onsets]
@@ -76,41 +105,65 @@ class AudioVisualizer:
 
         return fig, ax
     
-    def plot_onsets(self, reference, corrects, early, late, extras, missed, save_name, dir_path):
-        """
-        Dibuja los onsets en tres líneas: referencia, correctos+adelantados+atrasados, extras+perdidos.
-        """
-        # Alineación por capas:
-        #  Línea 0: referencia
-        #  Línea 1: correctos, adelantados, atrasados
-        #  Línea 2: extras, perdidos
-        fig, ax = plt.subplots(figsize=(12, 4))
+    def plot_onsets(self, result: OnsetDTWAnalysisResult, save_name, dir_path):
+        fig, ax = plt.subplots(figsize=(16, 4))
+        ref_onsets_from_matches = [m.ref_onset for m in result.matches]
+        ref_onsets_from_missing = [ref_time for ref_time, _ in result.missing_onsets]
+        all_ref_onsets = ref_onsets_from_matches + ref_onsets_from_missing
 
-        # Cada evento es una lista (incluso si hay uno solo) por capa
-        def plot_layer(events, y, color, label):
-            if events:
-                ax.eventplot(events, lineoffsets=y, colors=color, linelengths=0.8, label=label)
+        correct_live_onsets = [m.live_onset for m in result.matches if m.classification.value == 'correct']
+        early_live_onsets = [m.live_onset for m in result.matches if m.classification.value == 'early']
+        late_live_onsets = [m.live_onset for m in result.matches if m.classification.value == 'late']
+        extra_live_onsets = [live_time for live_time, _ in result.extra_onsets]
 
-        # Línea 0: referencia
-        plot_layer(reference, y=0, color='black', label='Referencia')
+        positions = [
+            all_ref_onsets,              # y = 2.0
+            correct_live_onsets,         # y = 1.0
+            early_live_onsets,           # y = 1.0
+            late_live_onsets,            # y = 1.0
+            ref_onsets_from_missing,     # y = 0.5
+            extra_live_onsets            # y = 0.5
+        ]
 
-        # Línea 1: correctos (verde), adelantados (naranja), atrasados (azul)
-        plot_layer(corrects, y=1, color='green', label='Correctos')
-        plot_layer(early, y=1, color='orange', label='Adelantados')
-        plot_layer(late, y=1, color='blue', label='Atrasados')
+        lineoffsets = [2.0, 1.0, 1.0, 1.0, 0.5, 0.5]
+        colors = ['blue', 'green', 'orange', 'purple', 'gray', 'red']
+        linelengths = [0.8, 0.8, 0.8, 0.8, 1.0, 1.0]
+        linestyles = ['solid', 'solid', 'solid', 'solid', 'dotted', 'dotted']
 
-        # Línea 2: extras (rojo), perdidos (magenta)
-        plot_layer(extras, y=2, color='red', label='Extras')
-        plot_layer(missed, y=2, color='magenta', label='Perdidos')
+        ax.eventplot(
+            positions,
+            lineoffsets=lineoffsets,
+            colors=colors,
+            linelengths=linelengths,
+            linestyle=linestyles,
+        )
 
-        ax.set_yticks([0, 1, 2])
-        ax.set_yticklabels(['Referencia', 'Alineados', 'Errores'])
+        for m in result.matches:
+            if m.classification.value == 'correct':
+                ax.plot([m.ref_onset, m.live_onset], [2.0, 1.0],
+                        color='black', linewidth=1.2, alpha=0.8, linestyle='dotted')
+
+        ax.set_yticks([0.5, 1.0, 2.0])
+        ax.set_yticklabels(['Extras/Perdidos', 'En vivo', 'Referencia'])
         ax.set_xlabel("Tiempo (s)")
-        ax.set_title('Errores de ejecución nota por nota: adelantados, atrasados, extras y faltantes')
-        fig.legend(loc='lower right')
+        ax.set_title(f"Análisis de onsets:\ncorrectos, adelantados, atrasados,\nextras y perdidos")  # Se usará una caja de texto en su lugar
         ax.grid(True, alpha=0.3)
-        plt.tight_layout()
+
+        # ➡️ Leyenda a la derecha, en tres columnas
+        legend_elements = [
+            Line2D([0], [0], color='blue', label='Referencia'),
+            Line2D([0], [0], color='green', label='Correctos'),
+            Line2D([0], [0], color='orange', label='Adelantados'),
+            Line2D([0], [0], color='purple', label='Atrasados'),
+            Line2D([0], [0], color='gray', label='Perdidos'),
+            Line2D([0], [0], color='red', label='Extras'),
+        ]
         
+        fig.legend(handles=legend_elements, loc='upper right', ncol=3, bbox_to_anchor=(0.99, 0.97))
+        plt.tight_layout()
+        # fig.set_tight_layout(True)
+        # plt.tight_layout(rect=[0.05, 0.05, 0.95, 0.9])  # Deja espacio arriba
+        # Guardar si es necesario
         if save_name:
             plots_dir = Path(dir_path)
             plots_dir.mkdir(parents=True, exist_ok=True)

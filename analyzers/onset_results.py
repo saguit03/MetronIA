@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import List, Dict, Any, NamedTuple
+from .config import TOLERANCE_MS
 
 import numpy as np
 
@@ -40,19 +41,15 @@ class OnsetDTWAnalysisResult:
     - Onsets faltantes y extras
     """
     
-    # Matches unificados (incluye todos los emparejamientos con clasificación)
     matches: List[OnsetMatch]
     
-    # Onsets no emparejados
     missing_onsets: List[tuple]  # (tiempo, pitch) de referencia
     extra_onsets: List[tuple]   # (tiempo, pitch) en vivo
     
-    # Datos del DTW
     dtw_path: np.ndarray
     alignment_cost: float
     
-    # Parámetros del análisis
-    tolerance_ms: float = 1.0    
+    tolerance_ms: float = TOLERANCE_MS
     def __post_init__(self):
         """Calcula estadísticas después de la inicialización."""
         self._calculate_stats()
@@ -81,17 +78,15 @@ class OnsetDTWAnalysisResult:
         self.total_live_onsets = len(self.matches) + len(self.extra_onsets)
         self.total_matches = len(self.matches)
         
-        # Contar por clasificación
         correct_count = len([m for m in self.matches if m.classification == OnsetType.CORRECT])
         late_count = len([m for m in self.matches if m.classification == OnsetType.LATE])
         early_count = len([m for m in self.matches if m.classification == OnsetType.EARLY])
         
-        # Tasas de error
         self.consistency_rate = correct_count / self.total_ref_onsets if self.total_ref_onsets > 0 else 0.0
         self.late_rate = late_count / self.total_ref_onsets if self.total_ref_onsets > 0 else 0.0
         self.early_rate = early_count / self.total_ref_onsets if self.total_ref_onsets > 0 else 0.0
         self.missing_rate = len(self.missing_onsets) / self.total_ref_onsets if self.total_ref_onsets > 0 else 0.0
-        self.extra_rate = len(self.extra_onsets) / self.total_live_onsets if self.total_live_onsets > 0 else 0.0          # Estadísticas de ajustes temporales
+        self.extra_rate = len(self.extra_onsets) / self.total_live_onsets if self.total_live_onsets > 0 else 0.0
         all_adjustments = [m.time_adjustment for m in self.matches]
         
         if all_adjustments:
@@ -121,7 +116,6 @@ class OnsetDTWAnalysisResult:
         Returns:
             Diccionario con todos los datos del análisis en formato JSON-serializable
         """
-        # Convertir matches a formato serializable
         matches_data = []
         for match in self.matches:
             matches_data.append({
@@ -134,7 +128,6 @@ class OnsetDTWAnalysisResult:
                 'classification': match.classification.value
             })
         
-        # Convertir numpy arrays a listas
         dtw_path_list = []
         if self.dtw_path is not None:
             dtw_path_list = self.dtw_path.tolist()
@@ -210,7 +203,6 @@ class OnsetDTWAnalysisResult:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        # Reconstruir matches
         matches = []
         for match_data in data['matches']:
             match = OnsetMatch(
@@ -224,16 +216,10 @@ class OnsetDTWAnalysisResult:
             )
             matches.append(match)
         
-        # Reconstruir missing_onsets
         missing_onsets = [(onset['onset'], onset['pitch']) for onset in data['missing_onsets']]
-        
-        # Reconstruir extra_onsets
         extra_onsets = [(onset['onset'], onset['pitch']) for onset in data['extra_onsets']]
-        
-        # Reconstruir DTW path
         dtw_path = np.array(data['dtw_path']) if data['dtw_path'] else np.array([])
         
-        # Crear instancia
         return cls(
             matches=matches,
             missing_onsets=missing_onsets,
