@@ -1,34 +1,42 @@
-"""
-Analizador de beat spectrum para comparación de patrones rítmicos.
-"""
-
 import librosa
 import numpy as np
 from dataclasses import dataclass
 
-from .config import AudioAnalysisConfig
-from .feature_extractor import AudioFeatureExtractor
+from utils.config import AudioAnalysisConfig
+from utils.feature_extractor import AudioFeatureExtractor
 
 @dataclass
 class BeatSpectrumResult:
-    """Resultado del análisis de beat spectrum."""
     beat_ref: np.ndarray
     beat_aligned: np.ndarray
     similarity_diff: np.ndarray
-    is_similar: bool
     max_difference: float
 
 class BeatSpectrumAnalyzer:
-    """Analizador de beat spectrum."""
-    
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
         self.feature_extractor = AudioFeatureExtractor(config)
 
-    def beat_spectrum(self, reference_audio, live_audio, sampling_rate):
+        
+    def mfcc_features(self, reference_audio, live_audio, sampling_rate):
         ref_feat = self.feature_extractor.extract_mfcc_features(reference_audio, sampling_rate)
         live_feat = self.feature_extractor.extract_mfcc_features(live_audio, sampling_rate)
+        return ref_feat, live_feat
 
+    def chroma_features(self, reference_audio, live_audio, sampling_rate):
+        ref_feat = self.feature_extractor.extract_chroma_features(reference_audio, sampling_rate)
+        live_feat = self.feature_extractor.extract_chroma_features(live_audio, sampling_rate)
+        return ref_feat, live_feat
+    
+    def both_beat_spectrums(self, reference_audio, live_audio, sampling_rate):
+        mfcc_ref, mfcc_live = self.mfcc_features(reference_audio, live_audio, sampling_rate)
+        chroma_ref, chroma_live = self.chroma_features(reference_audio, live_audio, sampling_rate)
+        mfcc_beat_spectrum = self.beat_spectrum(mfcc_ref, mfcc_live)
+        chroma_beat_spectrum = self.beat_spectrum(chroma_ref, chroma_live)
+        return mfcc_beat_spectrum, chroma_beat_spectrum
+        
+
+    def beat_spectrum(self, ref_feat, live_feat):
         D, wp = librosa.sequence.dtw(X=ref_feat.T, Y=live_feat.T, metric='cosine')
         wp = np.array(wp[::-1])  
 
@@ -45,13 +53,14 @@ class BeatSpectrumAnalyzer:
 
         similarity_diff = np.abs(beat_ref - beat_aligned)
         max_difference = np.max(similarity_diff)
-        is_similar = max_difference <= self.config.beat_spectrum_threshold
         
         return BeatSpectrumResult(
             beat_ref=beat_ref,
             beat_aligned=beat_aligned, 
             similarity_diff=similarity_diff,
-            is_similar=is_similar,
             max_difference=max_difference
         )
+
+
+
         

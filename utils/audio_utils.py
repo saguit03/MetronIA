@@ -42,19 +42,17 @@ def load_audio(path: str, sr: int = None):
     return librosa.load(str(path), sr=sr)
 
 def load_audio_files(reference_path: str, live_path: str) -> Tuple[np.ndarray, np.ndarray, int]:
-    """Carga archivos de audio."""
     reference_audio, sr = load_audio(reference_path)
     sr = int(sr)
     live_audio, _ = load_audio(live_path, sr=sr)
     return reference_audio, live_audio, sr
 
 
-def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, fs: int, hop_length: int):
-    """Extrae las características de cromograma de dos audios."""
-    reference_chroma = librosa.feature.chroma_cqt(y=reference_audio, sr=fs, hop_length=hop_length)
-    live_chroma = librosa.feature.chroma_cqt(y=live_audio, sr=fs, hop_length=hop_length)
+def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, hop_length: int):
+    reference_chroma = librosa.feature.chroma_cqt(y=reference_audio, sr=sr, hop_length=hop_length)
+    live_chroma = librosa.feature.chroma_cqt(y=live_audio, sr=sr, hop_length=hop_length)
     D, wp = librosa.sequence.dtw(X=reference_chroma, Y=live_chroma, metric='cosine')
-    wp_s = librosa.frames_to_time(wp, sr=fs, hop_length=hop_length)
+    wp_s = librosa.frames_to_time(wp, sr=sr, hop_length=hop_length)
     return D, wp, wp_s
 
 def sinc(x, wp_s, sample_rate, out_len, n_sync_points):
@@ -79,11 +77,11 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_sync_points):
 
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
-def save_comparative_plot(reference_audio: np.ndarray, live_audio: np.ndarray, fs: int, save_name, save_dir):
+def save_comparative_plot(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, save_name, save_dir):
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8, 4))
-    librosa.display.waveshow(reference_audio, sr=fs, ax=ax2)
+    librosa.display.waveshow(reference_audio, sr=sr, ax=ax2)
     ax2.set(title='Referencia')
-    librosa.display.waveshow(live_audio, sr=fs, ax=ax1)
+    librosa.display.waveshow(live_audio, sr=sr, ax=ax1)
     ax1.set(title='Alineado')
     plt.tight_layout()
     Path(save_dir).mkdir(parents=True, exist_ok=True)
@@ -93,7 +91,6 @@ def save_comparative_plot(reference_audio: np.ndarray, live_audio: np.ndarray, f
 
 
 def save_audio(audio, save_name, save_dir, sample_rate):
-    """Guarda el audio en un fichero WAV."""
     audio_normalized = np.int16(audio / np.max(np.abs(audio)) * 32767)
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     output_filename = Path(save_dir) / f"{save_name}.wav"
@@ -102,7 +99,6 @@ def save_audio(audio, save_name, save_dir, sample_rate):
 
 def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, hop_length: int, n_sync_points=N_SYNC_POINTS,
                   save_name="aligned", save_dir: Optional[str] = "aligned"):
-    
     distance, wp, wp_s = calculate_warping_path(reference_audio, live_audio, sr, hop_length)
     aligned = sinc_creciente(live_audio, wp_s, sr, len(reference_audio), n_sync_points=n_sync_points)
     save_audio(aligned, save_name, save_dir, sr)
@@ -110,7 +106,7 @@ def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, 
 
 
 def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
-    from mutations.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
+    from utils.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
     try:
         original_excerpt = load_midi_with_pretty_midi(midi_file_path)
         if verbose: print("✅ Archivo MIDI cargado exitosamente con pretty_midi")
@@ -139,43 +135,19 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
 
     return original_excerpt, base_tempo, reference_audio_path
 
-
-def get_reference_audio_duration(midi_name: str, output_dir: str) -> float:
-    """
-    Obtiene la duración en segundos del audio de referencia.
-    
-    Args:
-        midi_name: Nombre del archivo MIDI (sin extensión)
-        output_dir: Directorio base de resultados
-        
-    Returns:
-        Duración en segundos del audio, o 0.0 si no se puede obtener
-    """
-    try:
-        audio_path = Path("mutts") / f"{midi_name}" / "audios" / f"{midi_name}.wav"
-
-        if audio_path.exists():
-            duration = librosa.get_duration(path=str(audio_path))
-            return round(duration, 4)
-
-    except Exception as e:
-        print(f"⚠️ Error obteniendo duración para {midi_name}: {e}")
-        return 0.0
-
-
 def ejemplo():
     hop_length = 1024
-    reference_audio, fs = librosa.load('mutts/audios/Acordai-100_reference.wav')
-    live_audio, fs = librosa.load('mutts/audios/Acordai-100_faster_tempo.wav')
-    fs = int(fs)
-    D, wp, wp_s = calculate_warping_path(reference_audio, live_audio, fs, hop_length)
+    reference_audio, sr = librosa.load('mutts/audios/Acordai-100_reference.wav')
+    live_audio, sr = librosa.load('mutts/audios/Acordai-100_faster_tempo.wav')
+    sr = int(sr)
+    D, wp, wp_s = calculate_warping_path(reference_audio, live_audio, sr, hop_length)
     print(len(reference_audio), len(live_audio), len(wp), len(wp_s))
     n_sync_points = 50
-    aligned = sinc_creciente(live_audio, wp_s, fs, len(reference_audio), n_sync_points=n_sync_points)
+    aligned = sinc_creciente(live_audio, wp_s, sr, len(reference_audio), n_sync_points=n_sync_points)
     save_name = 'aligned_audios'
     save_dir = 'z/aligned'
-    save_comparative_plot(reference_audio, aligned, fs, save_name, save_dir)
-    save_audio(aligned, save_name, save_dir, fs)
+    save_comparative_plot(reference_audio, aligned, sr, save_name, save_dir)
+    save_audio(aligned, save_name, save_dir, sr)
 
 
 if __name__ == "__main__":

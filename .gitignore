@@ -17,6 +17,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 MemoriaTFG/
+midi/zips/
 
 # C extensions
 *.so

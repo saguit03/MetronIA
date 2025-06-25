@@ -2,67 +2,14 @@ from typing import Optional
 
 from mdtk.degradations import (
     pitch_shift,
-    offset_shift,
     add_note,
     join_notes,
     MAX_PITCH_DEFAULT,
     MIN_PITCH_DEFAULT
 )
-from mdtk.mutations import (
-    tempo_change,
-    articulated_staccato,
-    articulated_accentuated,
-    progressive_tempo_change,
-    time_shift_mutation,
-    tempo_fluctuation,
-    offset_cut,
-    remove_intermediate_note,
-    note_played_too_soon_mutation
-)
-from mutations.config import (
-    FASTER,
-    A_LOT_FASTER,
-    SLOWER,
-    A_LOT_SLOWER,
-    ACCELERANDO,
-    RITARDANDO,
-    MIN_DUR,
-    MAX_DUR,
-    MIN_VELOCITY,
-    MAX_VELOCITY,
-    NOTE_HELD_TOO_LONG,
-    NOTE_CUT_TOO_SOON,
-    ARTICULATED_LEGATO,
-    ARTICULATED_STACCATO,
-    ARTICULATED_ACCENTUATED,
-    TEMPO_FLUCTUATION,
-    SEED
-)
-from .changes import NoteMutationDetail, TempoMutationDetail, ArticulationMutationDetail
-
-VERBOSE = False
-
-def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
-    logs = []
-    if isinstance(mutation_log, TempoMutationDetail) or isinstance(mutation_log, ArticulationMutationDetail):
-        logs.append(mutation_log)
-        return logs
-
-    for onset, pitch in zip(mutation["onset"], mutation["pitch"]):
-        if VERBOSE: print(f"Onset: {onset}, Pitch: {pitch}")
-        logs.append(NoteMutationDetail(change_type="no_change", onset_timestamp=onset, pitch=pitch))
-
-    if index is not None:
-        logs.pop(index)
-
-    logs.append(mutation_log)
-    if VERBOSE:
-        for i, log in enumerate(logs):
-            if isinstance(log, NoteMutationDetail):
-                print(f"Log {i}: {log.change_type} at {log.onset_timestamp}, pitch: {log.pitch}")
-            elif isinstance(log, TempoMutationDetail):
-                print(f"Log {i}: {log.change_type} with factor {log.factor}")
-    return logs
+from mdtk.mutations import *
+from mutations.globals import *
+from .logs import NoteMutationDetail, TempoMutationDetail, ArticulationMutationDetail, get_mutation_log
 
 # pitch_shift. Shift the pitch of a note
 def pitch_shift_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=MAX_PITCH_DEFAULT, distribution=None):
@@ -134,7 +81,7 @@ def note_played_too_late_mutation(excerpt, tempo=120):
 # note_held_too_long. A note is played longer than expected
 def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"],
                                 max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):
-    mutation, index = offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, align_dur=align_dur, seed=SEED)
+    mutation, index = offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, max_duration=MAX_DUR, align_dur=align_dur, seed=SEED)
     log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],
                              pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)

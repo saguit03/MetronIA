@@ -1,27 +1,15 @@
-"""
-Analizador de onsets basado en DTW y altura para emparejamiento preciso.
-"""
-
-from typing import Tuple, Optional, List, Dict
-
+from typing import Tuple, Optional, List
 import numpy as np
 
-from .config import AudioAnalysisConfig
+from utils.config import AudioAnalysisConfig
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatch, OnsetType
-from .onset_utils import OnsetUtils
-
+from utils.onset_utils import OnsetUtils
+from utils.pitch_utils import calculate_note_similarity
 
 class OnsetDTWAnalyzer:
-    """
-    Analizador de onsets que usa DTW para alineamiento temporal y 
-    emparejamiento basado en altura musical.
-    """
-    
+
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
-        self.pitch_weight = 0.7
-        self.time_weight = 0.3
-        self.max_pitch_diff = 2.0
         self.tolerance_ms = config.tolerance_ms
 
     def dtw_valid_path(self, dtw_path: np.ndarray, onsets_ref: np.ndarray, onsets_live: np.ndarray, verbose: Optional[bool] = False) -> List[Tuple[int, int]]:
@@ -54,11 +42,10 @@ class OnsetDTWAnalyzer:
             if live_idx not in used_live_indices:
                 ref_onset = onsets_ref[ref_idx]
                 live_onset = onsets_live[live_idx]
-                ref_pitch = pitches_ref[ref_idx]
-                live_pitch = pitches_live[live_idx]
+                ref_note = pitches_ref[ref_idx]
+                live_note = pitches_live[live_idx]
                 time_adjustment = np.round((ref_onset - live_onset), self.config.round_decimals)
                 diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
-                pitch_similarity = OnsetUtils.calculate_pitch_similarity(ref_pitch, live_pitch)
                 if abs(diff_adj) <= self.tolerance_ms:
                     classification = OnsetType.CORRECT
                 elif diff_adj < 0:
@@ -69,20 +56,22 @@ class OnsetDTWAnalyzer:
                     print(f"Referencia ({ref_onset:.2f}) - Vivo ({live_onset:.2f}) \n Ajuste: {time_adjustment:.2f} ms")
                     print(f"Diferencia ajustada: {diff_adj:.2f} ms")
                     print(f"Clasificación: {classification.value}")
+
+                note_similarity_value, note_interval = calculate_note_similarity(ref_note, live_note)
                 
                 match = OnsetMatch(
                     ref_onset=ref_onset,
                     live_onset=live_onset,
-                    ref_pitch=ref_pitch,
-                    live_pitch=live_pitch,
+                    ref_note=ref_note,
+                    live_note=live_note,
                     time_adjustment=time_adjustment,
-                    pitch_similarity=pitch_similarity,
-                    classification=classification
+                    classification=classification,
+                    note_similarity=note_similarity_value,
                 )
                 matches.append(match)
                 used_live_indices.add(live_idx)
                 prev_adj = time_adjustment
-                
+
         matched_ref_indices = {ref_idx for ref_idx, _ in valid_dtw_path}
         matched_live_indices = used_live_indices
         
@@ -96,29 +85,18 @@ class OnsetDTWAnalyzer:
         return matches, unmatched_ref, unmatched_live
 
 
-    def match_onsets_with_dtw(self, audio_ref: np.ndarray, audio_live: np.ndarray, 
-                             sr: int, dtw_path, alignment_cost, tempo_ref, tempo_live) -> OnsetDTWAnalysisResult:
-        """
-        Empareja onsets usando DTW y similitud de altura.
-        
-        Args:
-            audio_ref: Audio de referencia
-            audio_live: Audio en vivo
-            sr: Sample rate
-            
-        Returns:
-            Resultado del análisis con emparejamientos y ajustes temporales        
-"""        
-        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(audio_ref, sr, tempo_ref)
-        onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(audio_live, sr, tempo_live)
+    def match_onsets_with_dtw(self, ref_audio: np.ndarray, live_audio: np.ndarray, 
+                             sr: int, dtw_path) -> OnsetDTWAnalysisResult:  
+        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(ref_audio, sr)
+        onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(live_audio, sr)
         
         matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref, pitches_ref=pitches_ref, onsets_live=onsets_live, pitches_live=pitches_live)
+
+        correct_notes = len([m for m in matches if m.note_similarity == 1.0])
 
         return OnsetDTWAnalysisResult(
             matches=matches,
             missing_onsets=unmatched_ref,
             extra_onsets=unmatched_live,
-            dtw_path=dtw_path,
-            alignment_cost=alignment_cost,
-            tolerance_ms=self.tolerance_ms
+            correct_notes=correct_notes,
         )

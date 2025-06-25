@@ -1,18 +1,19 @@
-"""
-Clases de resultado para mutaciones musicales.
-"""
+import pandas as pd
+from pathlib import Path
+
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Agg') 
 
 from dataclasses import dataclass
 from typing import Optional, Callable
 
-import pandas as pd
-
-from mutations.changes import save_mutation_logs_to_csv
-
+from mdtk.utils import plot_from_df
+from mutations.globals import MUTATIONS_PLOTS_PATH
+from mutations.logs import save_mutation_logs_to_csv
 
 @dataclass
 class MutationResult:
-    """Representa el resultado de aplicar una mutación."""
     name: str
     description: str
     function: Callable
@@ -23,18 +24,6 @@ class MutationResult:
     error: Optional[str] = None
 
     def apply(self, original_excerpt: pd.DataFrame, tempo: int = 120, output_dir: Optional[str] = "mutts") -> bool:
-        """
-        Aplica la mutación al excerpt original.
-        
-        Args:
-            original_excerpt: DataFrame con el excerpt musical original
-            tempo: Tempo en BPM del MIDI original (usado para mutaciones que requieren tempo)
-            save_changes: Si guardar automáticamente los cambios en archivos
-            output_dir: Directorio donde guardar los archivos de cambios
-        
-        Returns:
-            bool: True si la mutación fue exitosa, False en caso contrario.
-        """
         try:
             import inspect
             sig = inspect.signature(self.function)
@@ -58,23 +47,12 @@ class MutationResult:
         return self.success
 
     def set_audio_path(self, path: str):
-        """Establece la ruta del archivo de audio generado."""
         self.audio_path = path
 
     def set_midi_path(self, path: str):
-        """Establece la ruta del archivo de audio generado."""
         self.midi_path = path
 
     def get_mutation_tempo(self, base_tempo: int = 120) -> int:
-        """
-        Calcula el tempo correspondiente a la mutación aplicada.
-        
-        Args:
-            base_tempo: Tempo base del MIDI original (BPM)
-            
-        Returns:
-            int: Tempo calculado para la mutación en BPM
-        """
         if not self.success or self.excerpt is None:
             return base_tempo
 
@@ -86,12 +64,6 @@ class MutationResult:
         return self._calculate_tempo_for_mutation(base_tempo, mutation_type)
 
     def _detect_tempo_mutation_type(self) -> Optional[str]:
-        """
-        Detecta el tipo de mutación de tempo basado en el nombre.
-        
-        Returns:
-            str: Tipo de mutación o None si no es una mutación de tempo
-        """
         tempo_patterns = {
             'faster_tempo': 'faster',
             'a_lot_faster_tempo': 'a_lot_faster',
@@ -109,17 +81,7 @@ class MutationResult:
         return None
 
     def _calculate_tempo_for_mutation(self, base_tempo: int, mutation_type: str) -> int:
-        """
-        Calcula el tempo específico para cada tipo de mutación.
-        
-        Args:
-            base_tempo: Tempo base en BPM
-            mutation_type: Tipo de mutación detectada
-            
-        Returns:
-            int: Tempo calculado en BPM
-        """
-        from mutations.config import (
+        from mutations.globals import (
             FASTER, A_LOT_FASTER, SLOWER, A_LOT_SLOWER,
             ACCELERANDO, RITARDANDO
         )
@@ -140,14 +102,30 @@ class MutationResult:
         return max(40, min(200, calculated_tempo))
 
     def is_tempo_mutation(self) -> bool:
-        """
-        Verifica si la mutación afecta el tempo.
-        
-        Returns:
-            bool: True si es una mutación de tempo
-        """
         return self._detect_tempo_mutation_type() is not None
 
     def __str__(self):
         status = "✓" if self.success else "✗"
         return f"{status} {self.name}: {self.description}"
+
+def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
+    nr_diffs = len(list_of_diff_excerpts)
+    fig, ax = plt.subplots(
+        1, nr_diffs + 1, figsize=(6 * (nr_diffs + 1), 4), sharex=True, sharey=True
+    )
+    plt.sca(ax[0])
+    plot_from_df(orig_excerpt, alpha=0.3)
+    plt.title("original")
+
+    for ii in range(nr_diffs):
+        plt.sca(ax[ii + 1])
+        plot_from_df(orig_excerpt, alpha=0.3)
+        plot_from_df(list_of_diff_excerpts[ii])
+        plt.title(f"deg {ii + 1}")
+
+    if save_name is not None:
+        Path(MUTATIONS_PLOTS_PATH).mkdir(parents=True, exist_ok=True)
+        fig_path = Path(MUTATIONS_PLOTS_PATH) / f"{save_name}.png"
+        plt.savefig(fig_path, bbox_inches="tight")
+
+    plt.close(fig)
