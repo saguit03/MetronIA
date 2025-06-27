@@ -31,7 +31,7 @@ class MutationCatalog:
 
     def _initialize_mutations(self):
         pitch_category = MutationCategory(
-            name="pitch_errors",
+            name="pitch",
             description="Errores de altura de las notas"
         )
         pitch_category.add_mutation(MutationResult(
@@ -39,10 +39,10 @@ class MutationCatalog:
             description="Cambio de altura de una nota",
             function=pitch_shift_mutation
         ))
-        self.categories["pitch_errors"] = pitch_category
+        self.categories["pitch"] = pitch_category
 
         tempo_category = MutationCategory(
-            name="tempo_errors",
+            name="tempo",
             description="Errores relacionados con el tempo"
         )
 
@@ -54,10 +54,10 @@ class MutationCatalog:
         ]
         for name, desc, func in tempo_mutations:
             tempo_category.add_mutation(MutationResult(name=name, description=desc, function=func))
-        self.categories["tempo_errors"] = tempo_category
+        self.categories["tempo"] = tempo_category
 
         progressive_tempo_category = MutationCategory(
-            name="progressive_tempo_errors",
+            name="progressive_tempo",
             description="Errores de tempo progresivo"
         )
 
@@ -68,10 +68,10 @@ class MutationCatalog:
         ]
         for name, desc, func in progressive_tempo_mutations:
             progressive_tempo_category.add_mutation(MutationResult(name=name, description=desc, function=func))
-        self.categories["progressive_tempo_errors"] = progressive_tempo_category
+        self.categories["progressive_tempo"] = progressive_tempo_category
 
         timing_category = MutationCategory(
-            name="timing_errors",
+            name="timing",
             description="Errores de timing de las notas"
         )
         timing_mutations = [
@@ -80,10 +80,10 @@ class MutationCatalog:
         ]
         for name, desc, func in timing_mutations:
             timing_category.add_mutation(MutationResult(name=name, description=desc, function=func))
-        self.categories["timing_errors"] = timing_category
+        self.categories["timing"] = timing_category
 
         duration_category = MutationCategory(
-            name="duration_errors",
+            name="duration",
             description="Errores de duración de las notas"
         )
         duration_mutations = [
@@ -92,10 +92,10 @@ class MutationCatalog:
         ]
         for name, desc, func in duration_mutations:
             duration_category.add_mutation(MutationResult(name=name, description=desc, function=func))
-        self.categories["duration_errors"] = duration_category
+        self.categories["duration"] = duration_category
 
         note_category = MutationCategory(
-            name="note_errors",
+            name="note",
             description="Errores de presencia de notas"
         )
         note_mutations = [
@@ -104,10 +104,10 @@ class MutationCatalog:
         ]
         for name, desc, func in note_mutations:
             note_category.add_mutation(MutationResult(name=name, description=desc, function=func))
-        self.categories["note_errors"] = note_category
+        self.categories["note"] = note_category
 
         articulation_category = MutationCategory(
-            name="articulation_errors",
+            name="articulation",
             description="Errores de articulación"
         )
         articulation_mutations = [
@@ -117,7 +117,7 @@ class MutationCatalog:
         ]
         for name, desc, func in articulation_mutations:
             articulation_category.add_mutation(MutationResult(name=name, description=desc, function=func))
-        self.categories["articulation_errors"] = articulation_category
+        self.categories["articulation"] = articulation_category
 
     def get_mutation(self, category_name: str, mutation_name: str) -> Optional[MutationResult]:
         if category_name in self.categories:

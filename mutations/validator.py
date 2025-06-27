@@ -2,14 +2,13 @@ import matplotlib
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 
 matplotlib.use('Agg')
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
-from datetime import datetime
 from collections import defaultdict
 
 from utils.config import VERBOSE_LOGGING
@@ -197,9 +196,8 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
                                         str(category_confusion_matrix_path))
 
         validation_by_category_data.append({
-            'archivo': midi_name,
-            'categoria': category,
-            'exactitud': metrics['accuracy'],
+            'category': category,
+            'accuracy': metrics['accuracy'],
             'precision': metrics['precision'],
             'recall': metrics['recall'],
             'f1_score': metrics['f1_score'],
@@ -208,9 +206,8 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
         })
 
     validation_by_category_data.append({
-        'archivo': midi_name,
-        'categoria': 'PROMEDIO',
-        'exactitud': validation_result['accuracy'],
+        'category': 'PROMEDIO',
+        'accuracy': validation_result['accuracy'],
         'precision': validation_result['precision'],
         'recall': validation_result['recall'],
         'f1_score': validation_result['f1_score'],
@@ -230,3 +227,45 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
         'total_onsets_ref': validation_result['total_onsets_ref'],
         'total_onsets_live': validation_result['total_onsets_live']
     }
+
+def calculate_global_validation_results(output_dir: Path, processed_files: list):
+    validation_files = []
+    
+    for midi_file_path in processed_files:
+        midi_name = Path(midi_file_path).stem
+        validation_file = output_dir / f"{midi_name}_Mutaciones" / "Validation_Results" / "validation_results_by_category.csv"
+        
+        if validation_file.exists():
+            validation_files.append(validation_file)
+        else:
+            print(f"⚠️ No se encontró archivo de validación para {midi_name}")
+    
+    if not validation_files:
+        print("❌ No se encontraron archivos de validación para consolidar")
+        return
+    
+    all_dataframes = []
+    for validation_file in validation_files:
+        try:
+            df = pd.read_csv(validation_file)
+            if not df.empty:
+                all_dataframes.append(df)
+        except Exception as e:
+            print(f"⚠️ Error leyendo {validation_file}: {e}")
+    if not all_dataframes:
+        print("❌ No se pudieron leer los archivos de validación")
+        return
+    combined_df = pd.concat(all_dataframes, ignore_index=True)
+    combined_df = combined_df.drop(columns=['total_onsets_ref', 'total_onsets_live'], errors='ignore')
+    
+    numeric_columns = combined_df.select_dtypes(include=[np.number]).columns
+    
+    if 'category' in combined_df.columns:
+        global_results = combined_df.groupby('category')[numeric_columns].mean().reset_index()
+        global_results[numeric_columns] = global_results[numeric_columns].round(4)
+
+    global_file = output_dir / "global_validation_results_by_category.csv"
+    global_results.to_csv(global_file, index=False, encoding='utf-8')
+    
+    print(f"📈 Categorías procesadas: {len(global_results) - 1}")  # -1 para excluir el promedio general
+    return global_file

@@ -15,7 +15,7 @@ EPILOG = """Ejemplos de uso:
 python mutar_y_analizar.py
 
 # Aplicar múltiples categorías específicas
-python mutar_y_analizar.py --categories timing_errors tempo_errors
+python mutar_y_analizar.py --categories timing tempo
 
 # Usar un archivo MIDI específico
 python mutar_y_analizar.py --midi path/to/your/file.mid
@@ -27,12 +27,12 @@ python mutar_y_analizar.py --all_midi path/to/your/midi/directory
 python mutar_y_analizar.py --all_midi path/to/your/midi/directory --files_limit 10
   
 Categorías disponibles:
-  - pitch_errors: Errores de altura de las notas
-  - tempo_errors: Errores relacionados con el tempo
-  - timing_errors: Errores de timing de las notas
-  - duration_errors: Errores de duración de las notas
-  - note_errors: Errores de presencia de notas
-  - articulation_errors: Errores de articulación
+  - pitch: Errores de altura de las notas
+  - tempo: Errores relacionados con el tempo
+  - timing: Errores de timing de las notas
+  - duration: Errores de duración de las notas
+  - note: Errores de presencia de notas
+  - articulation: Errores de articulación
 """
 
 
@@ -107,7 +107,7 @@ def listar_categorias():
         for mutation_name in category.mutations.keys():
             print(f"     - {mutation_name}")
     print("\n💡 Usa --categories seguido de los nombres para filtrar.")
-    print("💡 Ejemplo: --categories timing_errors tempo_errors")
+    print("💡 Ejemplo: --categories timing tempo")
 
 
 def filtrar_mutaciones_por_categoria(categories_filter):

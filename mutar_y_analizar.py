@@ -13,7 +13,7 @@ from tqdm import tqdm
 from typing import Dict
 
 from analyzers import MetronIA
-from mutations.validator import run_validation_analysis
+from mutations.validator import run_validation_analysis, calculate_global_validation_results
 from utils.audio_utils import obtener_audio_de_midi
 from utils.mutation_utils import aplicar_mutaciones, analizar_mutaciones
 from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, \
@@ -41,7 +41,6 @@ def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_
 
     validation_metrics = run_validation_analysis(midi_name, results_dir)
     return validation_metrics
-
 
 def main():
     args = mutts_pipeline_arg_parser()
@@ -109,8 +108,8 @@ def main():
 
     midi_progress.close()
     if processed_files:
+        calculate_global_validation_results(output_dir, processed_files)
         tqdm.write(f"✅ Pipeline de mutaciones completado para {len(processed_files)} archivos")
-
 
 if __name__ == "__main__":
     main()
