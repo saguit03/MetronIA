@@ -11,6 +11,7 @@ from mdtk.mutations import *
 from mutations.globals import *
 from .logs import NoteMutationDetail, TempoMutationDetail, ArticulationMutationDetail, get_mutation_log
 
+
 # pitch_shift. Shift the pitch of a note
 def pitch_shift_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=MAX_PITCH_DEFAULT, distribution=None):
     mutation, index = pitch_shift(excerpt, min_pitch=min_pitch, max_pitch=max_pitch, distribution=distribution,
@@ -81,7 +82,7 @@ def note_played_too_late_mutation(excerpt, tempo=120):
 # note_held_too_long. A note is played longer than expected
 def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"],
                                 max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):
-    mutation, index = offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, max_duration=MAX_DUR, align_dur=align_dur, seed=SEED)
+    mutation, index = offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, max_duration=MAX_DUR, seed=SEED)
     log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],
                              pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)

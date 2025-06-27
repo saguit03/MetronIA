@@ -1,12 +1,12 @@
 import argparse
-from datetime import datetime
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from .config import VERBOSE_LOGGING
 from mutations.catalog import MutationCatalog
 from mutations.globals import DEFAULT_MIDI
+from .config import VERBOSE_LOGGING
 
 FILES_LIMIT = 10
 
@@ -35,12 +35,14 @@ Categorías disponibles:
   - articulation_errors: Errores de articulación
 """
 
+
 def get_output_directory(args) -> str:
     base_dir = args.output
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = Path(base_dir) / Path(timestamp)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     return output_dir
+
 
 def mutts_pipeline_arg_parser():
     parser = argparse.ArgumentParser(
@@ -54,6 +56,8 @@ def mutts_pipeline_arg_parser():
         '--midi',
         type=str,
         default=DEFAULT_MIDI,
+        nargs='*',
+        metavar='MIDI_FILE',
         help=f"Ruta al archivo MIDI de referencia (default: {DEFAULT_MIDI})"
     )
 
@@ -91,6 +95,7 @@ def mutts_pipeline_arg_parser():
 
     return parser.parse_args()
 
+
 def listar_categorias():
     print("📋 CATEGORÍAS DE MUTACIONES DISPONIBLES:")
     print("=" * 50)
@@ -103,6 +108,7 @@ def listar_categorias():
             print(f"     - {mutation_name}")
     print("\n💡 Usa --categories seguido de los nombres para filtrar.")
     print("💡 Ejemplo: --categories timing_errors tempo_errors")
+
 
 def filtrar_mutaciones_por_categoria(categories_filter):
     mutation_manager = MutationCatalog()
@@ -140,6 +146,7 @@ def get_midi_files_from_directory(directory_path: str) -> List[str]:
             midi_files.append(item_path)
     return midi_files
 
+
 def get_midi_files_to_process(args) -> List[str]:
     midi_files_to_process = []
     if args.all_midi:
@@ -152,12 +159,19 @@ def get_midi_files_to_process(args) -> List[str]:
             return
         print(f"🎶 Encontrados {len(midi_files_to_process)} archivos MIDI para procesar.")
     else:
-        if not os.path.exists(args.midi):
-            print(f"❌ Error: El archivo {args.midi} no existe.")
-            print("Por favor, verifica la ruta del archivo MIDI.")
-            return
-        midi_files_to_process.append(args.midi)
+        # Permite múltiples archivos MIDI como argumentos
+        if not args.midi or len(args.midi) == 0:
+            print(f"⚠️ No se especificaron archivos MIDI. Usando el archivo por defecto: {DEFAULT_MIDI}")
+            midi_files_to_process = [DEFAULT_MIDI]
+        else:
+            for midi_file in args.midi:
+                if os.path.isfile(midi_file) and midi_file.lower().endswith(('.mid', '.midi')):
+                    midi_files_to_process.append(midi_file)
+                else:
+                    print(f"⚠️ El archivo no es válido o no existe: {midi_file}")
+    if not midi_files_to_process: midi_files_to_process = [DEFAULT_MIDI]
     return midi_files_to_process
+
 
 def get_files_limit(args) -> int:
     if args.files_limit <= 0:

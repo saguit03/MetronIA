@@ -7,17 +7,18 @@
 3. Validar las mutaciones
 """
 
-from pathlib import Path
-from typing import Dict
-
 import traceback
+from pathlib import Path
 from tqdm import tqdm
+from typing import Dict
 
 from analyzers import MetronIA
 from mutations.validator import run_validation_analysis
 from utils.audio_utils import obtener_audio_de_midi
 from utils.mutation_utils import aplicar_mutaciones, analizar_mutaciones
-from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit
+from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, \
+    get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit
+
 
 def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str) -> Dict[str, float]:
     midi_path = Path(midi_file_path)
@@ -41,6 +42,7 @@ def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_
     validation_metrics = run_validation_analysis(midi_name, results_dir)
     return validation_metrics
 
+
 def main():
     args = mutts_pipeline_arg_parser()
 
@@ -54,7 +56,8 @@ def main():
 
     midi_files_to_process = get_midi_files_to_process(args)
     if not midi_files_to_process:
-        print("❌ No se encontraron archivos MIDI para procesar. Asegúrate de especificar un archivo o directorio válido.")
+        print(
+            "❌ No se encontraron archivos MIDI para procesar. Asegúrate de especificar un archivo o directorio válido.")
         return
 
     output_dir = get_output_directory(args)
@@ -68,7 +71,7 @@ def main():
 
     print("=" * 90)
 
-    processed_files = [] 
+    processed_files = []
     mutation_manager = filtrar_mutaciones_por_categoria(args.categories)
     midi_progress = tqdm(midi_files_to_process, desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
 
@@ -79,7 +82,7 @@ def main():
         if cont >= files_limit:
             tqdm.write(f"** Límite de archivos alcanzado({files_limit}): deteniendo procesamiento. **")
             break
-        
+
         cont += 1
         try:
             midi_filename = Path(midi_file_path).name
@@ -107,6 +110,7 @@ def main():
     midi_progress.close()
     if processed_files:
         tqdm.write(f"✅ Pipeline de mutaciones completado para {len(processed_files)} archivos")
+
 
 if __name__ == "__main__":
     main()

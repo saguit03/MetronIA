@@ -1,17 +1,17 @@
-from typing import Dict, Any, List
-
 import pandas as pd
 import traceback
 from tqdm import tqdm
+from typing import Dict, Any, List
 
 from analyzers import MetronIA
 from .config import VERBOSE_LOGGING
 from .midi_utils import save_mutation_complete
 
+
 def aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name, results_dir):
     successful_mutations = []
     failed_mutations = []
-    
+
     mutations_base_dir = results_dir / f"{midi_name}_Mutaciones"
     mutations_base_dir.mkdir(exist_ok=True)
 
@@ -47,9 +47,8 @@ def aplicar_mutaciones(mutation_manager, original_excerpt, base_tempo, midi_name
         print(f"\n⚠️ Mutaciones fallidas:")
         for category, name, error in failed_mutations:
             print(f"  - {category}.{name}: {error}")
-            
-    return successful_mutations
 
+    return successful_mutations
 
 
 def analizar_mutaciones(analyzer, successful_mutations, reference_audio_path, base_tempo, midi_name, results_dir):
@@ -63,7 +62,7 @@ def analizar_mutaciones(analyzer, successful_mutations, reference_audio_path, ba
             analysis_name = f"{midi_name}_{mutation_name}"
 
             analysis_dir = mutations_base_dir / analysis_name
-            analysis_dir.mkdir(parents=True, exist_ok=True)            
+            analysis_dir.mkdir(parents=True, exist_ok=True)
             analysis_result = analyzer.comprehensive_analysis(
                 reference_path=reference_audio_path,
                 live_path=audio_path,
@@ -75,9 +74,9 @@ def analizar_mutaciones(analyzer, successful_mutations, reference_audio_path, ba
             dtw_onset_result = analysis_result.get('dtw_onsets')
             if dtw_onset_result:
                 csv_data.append(get_mutation_result_row(category_name=category_name,
-                                             mutation_name=mutation_name,
-                                             analysis_result=analysis_result,
-                                             dtw_onset_result=dtw_onset_result))
+                                                        mutation_name=mutation_name,
+                                                        analysis_result=analysis_result,
+                                                        dtw_onset_result=dtw_onset_result))
                 progress_bar.set_postfix_str(f"✅ {category_name}")
             else:
                 progress_bar.set_postfix_str(f"⚠️ Sin resultados DTW")
@@ -93,6 +92,7 @@ def analizar_mutaciones(analyzer, successful_mutations, reference_audio_path, ba
         csv_file = mutations_summary_dir / "mutations_summary.csv"
         save_analysis_results_to_csv(csv_data, csv_file)
 
+
 def save_analysis_results_to_csv(analysis_data: List[Dict[str, Any]], output_file: str):
     if not analysis_data:
         print("⚠️ No hay datos de análisis para guardar en CSV")
@@ -105,21 +105,22 @@ def save_analysis_results_to_csv(analysis_data: List[Dict[str, Any]], output_fil
 
     return df
 
+
 def get_mutation_result_row(category_name, mutation_name, analysis_result, dtw_onset_result):
     return {
-                    'mutation_category': category_name,
-                    'mutation_name': mutation_name,
-                    'total_onsets_ref': len(dtw_onset_result.matches) + len(dtw_onset_result.missing_onsets),
-                    'total_onsets_live': len(dtw_onset_result.matches) + len(dtw_onset_result.extra_onsets),
-                    'correct_matches': len(
-                        [m for m in dtw_onset_result.matches if m.classification.value == 'correct']),
-                    'late_matches': len([m for m in dtw_onset_result.matches if m.classification.value == 'late']),
-                    'early_matches': len([m for m in dtw_onset_result.matches if m.classification.value == 'early']),
-                    'missing_onsets': len(dtw_onset_result.missing_onsets),
-                    'extra_onsets': len(dtw_onset_result.extra_onsets),
-                    'corret_notes': dtw_onset_result.correct_notes,
-                    'beat_spectrum_max_difference': f"{analysis_result['beat_spectrum'].max_difference:.3f}",
-                    'tempo_reference_bpm': f"{analysis_result['tempo'].tempo_ref:.2f}",
-                    'tempo_live_bpm': f"{analysis_result['tempo'].tempo_live:.2f}",
-                    'tempo_difference_bpm': f"{analysis_result['tempo'].difference:.2f}",
-                }
+        'mutation_category': category_name,
+        'mutation_name': mutation_name,
+        'total_onsets_ref': len(dtw_onset_result.matches) + len(dtw_onset_result.missing_onsets),
+        'total_onsets_live': len(dtw_onset_result.matches) + len(dtw_onset_result.extra_onsets),
+        'correct_matches': len(
+            [m for m in dtw_onset_result.matches if m.classification.value == 'correct']),
+        'late_matches': len([m for m in dtw_onset_result.matches if m.classification.value == 'late']),
+        'early_matches': len([m for m in dtw_onset_result.matches if m.classification.value == 'early']),
+        'missing_onsets': len(dtw_onset_result.missing_onsets),
+        'extra_onsets': len(dtw_onset_result.extra_onsets),
+        'corret_notes': dtw_onset_result.correct_notes,
+        'beat_spectrum_max_difference': f"{analysis_result['beat_spectrum'].max_difference:.3f}",
+        'tempo_reference_bpm': f"{analysis_result['tempo'].tempo_ref:.2f}",
+        'tempo_live_bpm': f"{analysis_result['tempo'].tempo_live:.2f}",
+        'tempo_difference_bpm': f"{analysis_result['tempo'].difference:.2f}",
+    }

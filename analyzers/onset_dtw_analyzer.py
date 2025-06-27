@@ -6,19 +6,21 @@ from .onset_results import OnsetDTWAnalysisResult, OnsetMatch, OnsetType
 from utils.onset_utils import OnsetUtils
 from utils.pitch_utils import calculate_note_similarity
 
+
 class OnsetDTWAnalyzer:
 
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
         self.tolerance_ms = config.tolerance_ms
 
-    def dtw_valid_path(self, dtw_path: np.ndarray, onsets_ref: np.ndarray, onsets_live: np.ndarray, verbose: Optional[bool] = False) -> List[Tuple[int, int]]:
+    def dtw_valid_path(self, dtw_path: np.ndarray, onsets_ref: np.ndarray, onsets_live: np.ndarray,
+                       verbose: Optional[bool] = False) -> List[Tuple[int, int]]:
         max_ref_idx = len(onsets_ref) - 1
         max_live_idx = len(onsets_live) - 1
-        
+
         valid_dtw_path = []
         invalid_indices_count = 0
-        
+
         for ref_idx, live_idx in dtw_path:
             if ref_idx <= max_ref_idx and live_idx <= max_live_idx:
                 valid_dtw_path.append((ref_idx, live_idx))
@@ -30,14 +32,16 @@ class OnsetDTWAnalyzer:
             print(f"   Usando {len(valid_dtw_path)} emparejamientos válidos")
 
         return valid_dtw_path
-    
-    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray, onsets_live: np.ndarray, pitches_live: np.ndarray, verbose: Optional[bool] = False) -> List[OnsetMatch]:
+
+    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,
+                    onsets_live: np.ndarray, pitches_live: np.ndarray, verbose: Optional[bool] = False) -> List[
+        OnsetMatch]:
         valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
         matches = []
         used_live_indices = set()
         prev_adj = None
         valid_dtw_path = valid_dtw_path[::-1]
-       
+
         for ref_idx, live_idx in valid_dtw_path:
             if live_idx not in used_live_indices:
                 ref_onset = onsets_ref[ref_idx]
@@ -58,7 +62,7 @@ class OnsetDTWAnalyzer:
                     print(f"Clasificación: {classification.value}")
 
                 note_similarity_value, note_interval = calculate_note_similarity(ref_note, live_note)
-                
+
                 match = OnsetMatch(
                     ref_onset=ref_onset,
                     live_onset=live_onset,
@@ -74,23 +78,24 @@ class OnsetDTWAnalyzer:
 
         matched_ref_indices = {ref_idx for ref_idx, _ in valid_dtw_path}
         matched_live_indices = used_live_indices
-        
-        unmatched_ref = [(onsets_ref[i], pitches_ref[i]) 
-                        for i in range(len(onsets_ref)) 
-                        if i not in matched_ref_indices]
-        
-        unmatched_live = [(onsets_live[i], pitches_live[i]) 
-                         for i in range(len(onsets_live)) 
-                         if i not in matched_live_indices]
+
+        unmatched_ref = [(onsets_ref[i], pitches_ref[i])
+                         for i in range(len(onsets_ref))
+                         if i not in matched_ref_indices]
+
+        unmatched_live = [(onsets_live[i], pitches_live[i])
+                          for i in range(len(onsets_live))
+                          if i not in matched_live_indices]
         return matches, unmatched_ref, unmatched_live
 
-
-    def match_onsets_with_dtw(self, ref_audio: np.ndarray, live_audio: np.ndarray, 
-                             sr: int, dtw_path) -> OnsetDTWAnalysisResult:  
-        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(ref_audio, sr)
+    def match_onsets_with_dtw(self, reference_audio: np.ndarray, live_audio: np.ndarray,
+                              sr: int, dtw_path) -> OnsetDTWAnalysisResult:
+        onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(reference_audio, sr)
         onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(live_audio, sr)
-        
-        matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref, pitches_ref=pitches_ref, onsets_live=onsets_live, pitches_live=pitches_live)
+
+        matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref,
+                                                                  pitches_ref=pitches_ref, onsets_live=onsets_live,
+                                                                  pitches_live=pitches_live)
 
         correct_notes = len([m for m in matches if m.note_similarity == 1.0])
 

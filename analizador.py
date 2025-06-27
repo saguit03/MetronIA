@@ -19,15 +19,16 @@ Ejemplos:
 """
 
 import os
-import sys
 import re
+import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from tqdm import tqdm
+from typing import Optional
 
 from analyzers import MetronIA
+
 
 def validate_arguments() -> tuple[str, str, Optional[str]]:
     if len(sys.argv) < 3:
@@ -36,9 +37,10 @@ def validate_arguments() -> tuple[str, str, Optional[str]]:
         print("    python analizador.py <ruta_referencia> <ruta_en_vivo> [nombre_analisis]")
         print("\n📝 Ejemplos:")
         print("    python analizador.py mi_analisis audio/reference.wav audio/live.wav")
-        print("    python analizador.py mi_analisis audio/reference.wav audio/live-1.wav audio/live-2.wav audio/live-3.wav")
+        print(
+            "    python analizador.py mi_analisis audio/reference.wav audio/live-1.wav audio/live-2.wav audio/live-3.wav")
         sys.exit(1)
-    
+
     analysis_name = sys.argv[1]
     if analysis_name:
         analysis_name = re.sub(r'[^a-zA-Z0-9_-]', '_', analysis_name)
@@ -72,17 +74,17 @@ def main():
     print("=" * 70)
 
     analysis_name, ref_path, live_paths = validate_arguments()
-    
+
     try:
         analyzer = MetronIA()
 
         save_dir = Path(f"results") / analysis_name
         save_dir.mkdir(parents=True, exist_ok=True)
-        
+
         analysis_progress = tqdm(live_paths, desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
         for live_path in analysis_progress:
             analysis_progress.set_description(desc=f"Analizando {live_path}")
-            if len(live_paths) > 1: 
+            if len(live_paths) > 1:
                 save_live_dir = save_dir / Path(live_path).stem
             else:
                 save_live_dir = save_dir
@@ -106,6 +108,7 @@ def main():
         print(f"❌ Error durante el análisis: {e}")
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

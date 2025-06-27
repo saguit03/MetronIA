@@ -9,7 +9,7 @@ from utils.visualizer import Visualizer
 
 __all__ = [
     'AudioAnalysisConfig',
-    'BeatSpectrumResult', 
+    'BeatSpectrumResult',
     'TempoAnalysisResult',
     'OnsetDTWAnalysisResult',
     'OnsetMatch',

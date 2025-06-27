@@ -1,9 +1,9 @@
+import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 
-import matplotlib
-import matplotlib.pyplot as plt
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
 
 from dataclasses import dataclass
 from typing import Optional, Callable
@@ -11,6 +11,7 @@ from typing import Optional, Callable
 from mdtk.utils import plot_from_df
 from mutations.globals import MUTATIONS_PLOTS_PATH
 from mutations.logs import save_mutation_logs_to_csv
+
 
 @dataclass
 class MutationResult:
@@ -107,6 +108,7 @@ class MutationResult:
     def __str__(self):
         status = "✓" if self.success else "✗"
         return f"{status} {self.name}: {self.description}"
+
 
 def save_plot_against_orig(orig_excerpt, list_of_diff_excerpts, save_name=None):
     nr_diffs = len(list_of_diff_excerpts)

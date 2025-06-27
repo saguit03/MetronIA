@@ -32,7 +32,9 @@ class ArticulationMutationDetail(NamedTuple):
     change_type: ChangeType
     articulation: str = None
 
+
 VERBOSE = False
+
 
 def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
     logs = []
@@ -56,6 +58,7 @@ def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
                 print(f"Log {i}: {log.change_type} with factor {log.factor}")
     return logs
 
+
 def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
     if not logs:
         print("⚠️ No hay logs de mutación para guardar.")
@@ -70,7 +73,7 @@ def save_mutation_logs_to_csv(logs: List[Any], save_dir: str, save_name):
             onset = np.round(log.onset_timestamp / 1000, 3)
             if onset in onset_times_seen:
                 continue
-            
+
             onset_times_seen.add(onset)
             aux = pd.DataFrame({
                 'onset_type': [log.change_type],

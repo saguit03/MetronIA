@@ -1,4 +1,5 @@
 from pathlib import Path
+
 # DEFAULT_MIDI = "midi/BlessedMessiahAndTheTowerOfAI.mid"
 DEFAULT_MIDI = "midi/Campanita_del_lugar.mid"
 

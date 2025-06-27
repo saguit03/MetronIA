@@ -1,5 +1,5 @@
 import librosa
-import pandas as pd   
+import pandas as pd
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -11,6 +11,7 @@ from utils.onset_utils import OnsetUtils
 from .tempo_analyzer import TempoAnalyzer
 from utils.visualizer import Visualizer
 
+
 class MetronIA:
     def __init__(self, config: Optional[AudioAnalysisConfig] = None):
         self.config = config or AudioAnalysisConfig()
@@ -19,41 +20,42 @@ class MetronIA:
         self.beat_spectrum_analyzer = BeatSpectrumAnalyzer(self.config)
         self.visualizer = Visualizer(self.config)
 
-    def comprehensive_analysis(self, reference_path: str, live_path: str, 
-                             save_name,
-                             save_dir,
-                             reference_tempo: Optional[float] = None,
-                             mutation_name: Optional[str] = None,
-                             verbose: Optional[bool] = False) -> Dict[str, Any]:
+    def comprehensive_analysis(self, reference_path: str, live_path: str,
+                               save_name,
+                               save_dir,
+                               reference_tempo: Optional[float] = None,
+                               mutation_name: Optional[str] = None,
+                               verbose: Optional[bool] = False) -> Dict[str, Any]:
         # 1. Carga de audios
-        ref_audio, live_audio, sampling_rate = load_audio_files(reference_path, live_path)
-        
+        reference_audio, live_audio, sampling_rate = load_audio_files(reference_path, live_path)
+
         # 2. Eliminación de silencios al inicio y al final de los audios
-        trimmed_reference_audio, (reference_start_index, reference_end_index) = librosa.effects.trim(ref_audio)
+        trimmed_reference_audio, (reference_start_index, reference_end_index) = librosa.effects.trim(reference_audio)
         trimmed_live_audio, (live_start_index, live_end_index) = librosa.effects.trim(live_audio)
         if verbose: print(f"🎧 Audios cargados y silencios eliminados.")
 
         # 3. Alineamiento de audios
-        aligned_live_audio = stretch_audio(trimmed_reference_audio, trimmed_live_audio, sampling_rate, self.config.hop_length, save_name="aligned_audio", save_dir=save_dir)
-        if verbose: 
+        aligned_live_audio = stretch_audio(trimmed_reference_audio, trimmed_live_audio, sampling_rate,
+                                           self.config.hop_length, save_name="aligned_audio", save_dir=save_dir)
+        if verbose:
             print(f"⛓️‍💥 Alineamiento de audios completado.")
 
         # 4. Cálculo de DTW con el audio en vivo alineado
-        distance, wp, wp_s = calculate_warping_path(trimmed_reference_audio, aligned_live_audio, sampling_rate,  self.config.hop_length)
-        if verbose: 
+        distance, wp, wp_s = calculate_warping_path(trimmed_reference_audio, aligned_live_audio, sampling_rate,
+                                                    self.config.hop_length)
+        if verbose:
             print(f"🧮 DTW calculado.")
             print(f"📊 Comenzando análisis...")
 
         # 5. ANÁLISIS Y OBTENCIÓN DE RESULTADOS       
         # 5.1 Análisis de tempi del audio de referencia y del audio en vivo (sin alinear para obtener el tempo original)
-        tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(trimmed_reference_audio, trimmed_live_audio, sampling_rate, reference_tempo)
-        if verbose: print(f"⌛ Tempo de referencia: {tempo_result.tempo_ref} BPM \n⌛ Tempo en vivo: {tempo_result.tempo_live} BPM")
-        # 5.2 Obtención del beat spectrum
-        # beat_result = self.beat_spectrum_analyzer.beat_spectrum(trimmed_reference_audio, aligned_live_audio, sampling_rate)
-        mfcc_beat_spectrum, chroma_beat_spectrum = self.beat_spectrum_analyzer.both_beat_spectrums(trimmed_reference_audio, aligned_live_audio, sampling_rate)
-        if verbose: print(f"📈 Beat spectrum calculado.")
-        # 5.3 Detección y alineamiento de onsets con DTW   
-        if verbose: print(f"🕰️ Detección y emparejamiento de onsets con DTW...")     
+        tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(trimmed_reference_audio, trimmed_live_audio,
+                                                                        sampling_rate, reference_tempo)
+        if verbose: print(
+            f"⌛ Tempo de referencia: {tempo_result.tempo_ref} BPM \n⌛ Tempo en vivo: {tempo_result.tempo_live} BPM")
+
+        # 5.2 Detección y alineamiento de onsets con DTW   
+        if verbose: print(f"🕰️ Detección y emparejamiento de onsets con DTW...")
         dtw_onset_result = self.onset_dtw_analyzer.match_onsets_with_dtw(
             trimmed_reference_audio, aligned_live_audio, sampling_rate, wp
         )
@@ -70,35 +72,45 @@ class MetronIA:
             if verbose: print(f"💾 Almacenando resultados en {analysis_dir}...")
 
             # 6.1 Gráficas de beat spectrum
+            # beat_result = self.beat_spectrum_analyzer.beat_spectrum(trimmed_reference_audio, aligned_live_audio, sampling_rate)
             # self.visualizer.plot_beat_spectrum_comparison(result=beat_result, sr=sampling_rate, save_name="beat_spectrum", dir_path=analysis_dir)
-            self.visualizer.plot_beat_spectrum_comparison(result=mfcc_beat_spectrum, sr=sampling_rate, save_name="beat_spectrum_mfcc", dir_path=analysis_dir)
-            self.visualizer.plot_beat_spectrum_comparison(result=chroma_beat_spectrum, sr=sampling_rate, save_name="beat_spectrum_chroma", dir_path=analysis_dir)
+            mfcc_beat_spectrum, chroma_beat_spectrum = self.beat_spectrum_analyzer.both_beat_spectrums(
+                trimmed_reference_audio, aligned_live_audio, sampling_rate)
+            self.visualizer.plot_beat_spectrum_comparison(result=mfcc_beat_spectrum, sr=sampling_rate,
+                                                          save_name="beat_spectrum_mfcc", dir_path=analysis_dir)
+            self.visualizer.plot_beat_spectrum_comparison(result=chroma_beat_spectrum, sr=sampling_rate,
+                                                          save_name="beat_spectrum_chroma", dir_path=analysis_dir)
             # 6.2 Línea temporal de onsets
             self.visualizer.plot_onsets(result=dtw_onset_result, save_name="onset_timeline", dir_path=analysis_dir)
             # 6.3 Distribución de errores de onsets en todo el audio
-            self.visualizer.plot_onset_distribution(dtw_onset_result=dtw_onset_result, save_name="onset_distribution", dir_path=analysis_dir)
+            self.visualizer.plot_onset_distribution(dtw_onset_result=dtw_onset_result, save_name="onset_distribution",
+                                                    dir_path=analysis_dir)
             # 6.4 Gráfico de tarta de onsets
-            self.visualizer.plot_onset_pie(dtw_onset_result=dtw_onset_result, save_name="onset_pie", dir_path=analysis_dir)
+            self.visualizer.plot_onset_pie(dtw_onset_result=dtw_onset_result, save_name="onset_pie",
+                                           dir_path=analysis_dir)
             # 6.5 Análisis completo de onsets
-            OnsetUtils.save_onsets_analysis_to_csv(dtw_onset_result=dtw_onset_result, save_name="onset_analysis", dir_path=analysis_dir, mutation_name=mutation_name)
+            OnsetUtils.save_onsets_analysis_to_csv(dtw_onset_result=dtw_onset_result, save_name="onset_analysis",
+                                                   dir_path=analysis_dir, mutation_name=mutation_name)
             # 6.5 Informe de análisis
-            self.save_analysis_summary(tempo_result=tempo_result, dtw_onset_results=dtw_onset_result, dir_path=analysis_dir)
+            self.save_analysis_summary(tempo_result=tempo_result, dtw_onset_results=dtw_onset_result,
+                                       dir_path=analysis_dir)
 
         return {
             'beat_spectrum': mfcc_beat_spectrum,
             'dtw_onsets': dtw_onset_result,
             'tempo': tempo_result,
-            'ref_audio':  ref_audio,
+            'reference_audio': reference_audio,
             'live_audio': live_audio,
             'sample_rate': sampling_rate
         }
-    
+
     def save_analysis_summary(self, tempo_result, dtw_onset_results, dir_path):
         data = {
             'tempo_ref': tempo_result.tempo_ref,
             'tempo_live': tempo_result.tempo_live,
             'tempo_difference': tempo_result.difference,
-            'total_onsets_ref': len(dtw_onset_results.correct_matches) + len(dtw_onset_results.late_matches) + len(dtw_onset_results.early_matches) + len(dtw_onset_results.missing_onsets),
+            'total_onsets_ref': len(dtw_onset_results.correct_matches) + len(dtw_onset_results.late_matches) + len(
+                dtw_onset_results.early_matches) + len(dtw_onset_results.missing_onsets),
             'correct_onsets': len(dtw_onset_results.correct_matches),
             'late_onsets': len(dtw_onset_results.late_matches),
             'early_onsets': len(dtw_onset_results.early_matches),
@@ -111,6 +123,5 @@ class MetronIA:
         results_dir.mkdir(parents=True, exist_ok=True)
         csv_filename = results_dir / f"analysis_summary.csv"
         df.to_csv(csv_filename, index=False)
-
 
 # Por si las dudas, he elegido yo misma los emoticonos, no ha sido ninguna IA :sob:

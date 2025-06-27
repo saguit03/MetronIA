@@ -4,15 +4,16 @@ from scipy.spatial.distance import cdist
 
 from utils.config import AudioAnalysisConfig
 
+
 class AudioFeatureExtractor:
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
-    
+
     def extract_mfcc_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
         mfcc = librosa.feature.mfcc(
-            y=audio, 
-            sr=sr, 
-            hop_length=self.config.hop_length, 
+            y=audio,
+            sr=sr,
+            hop_length=self.config.hop_length,
             n_mfcc=self.config.n_mfcc
         )
         return librosa.util.normalize(mfcc, axis=1).T  # (frames, features)
@@ -28,10 +29,9 @@ class AudioFeatureExtractor:
 
     def extract_chroma_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
         chroma = librosa.feature.chroma_cqt(
-            y=audio, 
-            sr=sr, 
-            hop_length=self.config.hop_length, 
+            y=audio,
+            sr=sr,
+            hop_length=self.config.hop_length,
             n_chroma=self.config.n_chroma
         )
         return librosa.util.normalize(chroma, axis=1).T
-    

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 VERBOSE_LOGGING = False
 TOLERANCE_MS = 0.1
 
+
 @dataclass
 class AudioAnalysisConfig:
     hop_length: int = 1024

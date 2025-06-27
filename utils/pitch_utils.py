@@ -1,47 +1,49 @@
-
 import math
 
 NOTE_NAMES = ['C', 'C#/Db', 'D', 'D#/Eb', 'E/Fb', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A', 'A#/Bb', 'B/Cb']
 INTERVALS = {
-        0: 'Unison',
-        1: '2m Minor Second',
-        2: '2M Major Second',
-        3: '3m Minor Third',
-        4: '3M Major Third',
-        5: '4P Perfect Fourth',
-        6: '4Aug/5dim Tritone',
-        7: '5P Perfect Fifth',
-        8: '6m Minor Sixth',
-        9: '6M Major Sixth',
-        10: '7m Minor Seventh',
-        11: '7M Major Seventh',
-        12: 'Octave'
-    }
+    0: 'Unison',
+    1: '2m Minor Second',
+    2: '2M Major Second',
+    3: '3m Minor Third',
+    4: '3M Major Third',
+    5: '4P Perfect Fourth',
+    6: '4Aug/5dim Tritone',
+    7: '5P Perfect Fifth',
+    8: '6m Minor Sixth',
+    9: '6M Major Sixth',
+    10: '7m Minor Seventh',
+    11: '7M Major Seventh',
+    12: 'Octave'
+}
+
 
 def hz_to_note(frequency_hz: float):
     if frequency_hz <= 0:
         return None
-    
+
     midi_number = 69 + 12 * math.log2(frequency_hz / 440.0)
     midi_number = round(midi_number)
-    
+
     if midi_number < 0 or midi_number > 127:
         return None
-    
+
     octave = (midi_number // 12) - 1
     note_index = midi_number % 12
-    
+
     return f"{NOTE_NAMES[note_index]}{octave}"
+
 
 def note_to_index(note: str):
     if not note or len(note) < 2:
         return None
     note_part = note[:-1]  # Parte de la nota (sin el número de octava)
     try:
-        note_index = NOTE_NAMES.index(note_part) 
+        note_index = NOTE_NAMES.index(note_part)
     except:
         return None
     return note_index
+
 
 def calculate_note_similarity(ref_note, live_note):
     ref_note_index = note_to_index(ref_note)

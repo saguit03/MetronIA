@@ -1,17 +1,17 @@
-from pathlib import Path
-
 import mido
 import numpy as np
 import pandas as pd
 import pretty_midi
+import warnings
+from pathlib import Path
 
 from mdtk.utils import synthesize_from_note_df
 from mutations.globals import MUTATIONS_PATH, MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
 from mutations.results import MutationResult
 from utils.audio_utils import save_audio
 
-import warnings
 warnings.filterwarnings("ignore", module="pretty_midi")
+
 
 def save_excerpt_in_audio(excerpt, dir_name, save_name, sample_rate=16000):
     audio_data = synthesize_from_note_df(excerpt)
@@ -97,9 +97,9 @@ def save_excerpt_in_midi(excerpt, dir_name, save_name, tempo=120):
                 end=end_time
             )
             instrument.notes.append(note)
-            
+
         midi_data.instruments.append(instrument)
-        
+
     midi_data.write(str(output_filename))
 
     return output_filename
@@ -113,7 +113,8 @@ def save_mutation_complete(mutation_result: MutationResult, mutation_name, save_
     calculated_tempo = mutation_result.get_mutation_tempo(base_tempo)
     audio_path = save_excerpt_in_audio(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name,
                                        sample_rate=sample_rate)
-    midi_path = save_excerpt_in_midi(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name, tempo=calculated_tempo)
+    midi_path = save_excerpt_in_midi(excerpt=mutation_result.excerpt, dir_name=mutation_name, save_name=save_name,
+                                     tempo=calculated_tempo)
     return audio_path, midi_path, calculated_tempo
 
 
@@ -165,4 +166,4 @@ def extract_tempo_from_midi(midi_file_path: str) -> int:
     except Exception:
         pass
 
-    return 120 # Por defecto
+    return 120  # Por defecto

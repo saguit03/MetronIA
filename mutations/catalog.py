@@ -129,4 +129,3 @@ class MutationCatalog:
         for category in self.categories.values():
             all_mutations.extend(category.mutations.values())
         return all_mutations
-

@@ -1,18 +1,19 @@
+import librosa
+import matplotlib
+import matplotlib.pyplot as plt
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 
-import librosa
-import subprocess
-import tempfile
-import matplotlib
-import matplotlib.pyplot as plt
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
 import numpy as np
 import pandas as pd
 import pyrubberband.pyrb as pyrb
 import scipy.io.wavfile as wavfile
 
 N_SYNC_POINTS = 10  # Número de puntos de sincronización para la alineación
+
 
 def check_extension(file_path: str, midi_name) -> str:
     if Path(file_path).suffix.lower() == '.mid':
@@ -23,6 +24,7 @@ def check_extension(file_path: str, midi_name) -> str:
     else:
         audio_path = file_path
     return str(audio_path)
+
 
 def load_audio(path: str, sr: int = None):
     path = Path(path)
@@ -41,6 +43,7 @@ def load_audio(path: str, sr: int = None):
 
     return librosa.load(str(path), sr=sr)
 
+
 def load_audio_files(reference_path: str, live_path: str) -> Tuple[np.ndarray, np.ndarray, int]:
     reference_audio, sr = load_audio(reference_path)
     sr = int(sr)
@@ -55,10 +58,12 @@ def calculate_warping_path(reference_audio: np.ndarray, live_audio: np.ndarray, 
     wp_s = librosa.frames_to_time(wp, sr=sr, hop_length=hop_length)
     return D, wp, wp_s
 
+
 def sinc(x, wp_s, sample_rate, out_len, n_sync_points):
     time_map = [(int(x * sample_rate), int(y * sample_rate)) for (x, y) in wp_s[::len(wp_s) // n_sync_points]]
     time_map.append((len(x), out_len))
     return pyrb.timemap_stretch(x, sample_rate, time_map)
+
 
 def sinc_creciente(x, wp_s, sample_rate, out_len, n_sync_points):
     raw_map = [(int(t2 * sample_rate), int(t1 * sample_rate)) for t1, t2 in wp_s[::n_sync_points]]
@@ -76,6 +81,7 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_sync_points):
             time_map[-1] = (t_in, t_out)
 
     return pyrb.timemap_stretch(x, sample_rate, time_map)
+
 
 def save_comparative_plot(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, save_name, save_dir):
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8, 4))
@@ -97,7 +103,9 @@ def save_audio(audio, save_name, save_dir, sample_rate):
     wavfile.write(output_filename, sample_rate, audio_normalized)
     return output_filename
 
-def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, hop_length: int, n_sync_points=N_SYNC_POINTS,
+
+def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, hop_length: int,
+                  n_sync_points=N_SYNC_POINTS,
                   save_name="aligned", save_dir: Optional[str] = "aligned"):
     distance, wp, wp_s = calculate_warping_path(reference_audio, live_audio, sr, hop_length)
     aligned = sinc_creciente(live_audio, wp_s, sr, len(reference_audio), n_sync_points=n_sync_points)
@@ -134,6 +142,7 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
         return None
 
     return original_excerpt, base_tempo, reference_audio_path
+
 
 def ejemplo():
     hop_length = 1024
