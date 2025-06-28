@@ -232,24 +232,18 @@ def calculate_global_validation_results(output_dir: Path, processed_files: list)
     calculate_global_validation_results_by_category(output_dir, processed_files)
     calculate_global_validation_results_by_file(output_dir, processed_files)
 
-    validation_files = []
+def calculate_global_validation_results_by_category(output_dir: Path, processed_files: list):
+    all_dataframes = []
     
     for midi_file_path in processed_files:
         midi_name = Path(midi_file_path).stem
         validation_file = output_dir / f"{midi_name}_Mutaciones" / "Validation_Results" / "validation_results_by_category.csv"
         
         if validation_file.exists():
-            validation_files.append(validation_file)
-    
-    all_dataframes = []
-    for validation_file in validation_files:
-        df = pd.read_csv(validation_file)
-        if not df.empty:
-            all_dataframes.append(df)
+            df = pd.read_csv(validation_file)
+            if not df.empty:
+                all_dataframes.append(df)
 
-    if not all_dataframes:
-        print("❌ No se pudieron leer los archivos de validación")
-        return
     combined_df = pd.concat(all_dataframes, ignore_index=True)
     combined_df = combined_df.drop(columns=['total_onsets_ref', 'total_onsets_live'], errors='ignore')
     
