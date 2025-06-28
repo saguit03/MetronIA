@@ -26,7 +26,6 @@ def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_
     results_dir = Path(output_base_dir)
     results_dir.mkdir(exist_ok=True)
 
-    reference_audio_path = midi_name + "_reference"
     original_excerpt, base_tempo, reference_audio_path = obtener_audio_de_midi(midi_file_path, midi_name)
 
     if original_excerpt is None:
