@@ -118,7 +118,7 @@ def get_mutation_result_row(category_name, mutation_name, analysis_result, dtw_o
         'early_matches': len([m for m in dtw_onset_result.matches if m.classification.value == 'early']),
         'missing_onsets': len(dtw_onset_result.missing_onsets),
         'extra_onsets': len(dtw_onset_result.extra_onsets),
-        'corret_notes': dtw_onset_result.correct_notes,
+        'correct_notes': dtw_onset_result.correct_notes,
         'beat_spectrum_max_difference': f"{analysis_result['beat_spectrum'].max_difference:.3f}",
         'tempo_reference_bpm': f"{analysis_result['tempo'].tempo_ref:.2f}",
         'tempo_live_bpm': f"{analysis_result['tempo'].tempo_live:.2f}",
