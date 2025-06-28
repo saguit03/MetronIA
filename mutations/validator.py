@@ -229,6 +229,9 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
     }
 
 def calculate_global_validation_results(output_dir: Path, processed_files: list):
+    calculate_global_validation_results_by_category(output_dir, processed_files)
+    calculate_global_validation_results_by_file(output_dir, processed_files)
+
     validation_files = []
     
     for midi_file_path in processed_files:
@@ -237,21 +240,13 @@ def calculate_global_validation_results(output_dir: Path, processed_files: list)
         
         if validation_file.exists():
             validation_files.append(validation_file)
-        else:
-            print(f"⚠️ No se encontró archivo de validación para {midi_name}")
-    
-    if not validation_files:
-        print("❌ No se encontraron archivos de validación para consolidar")
-        return
     
     all_dataframes = []
     for validation_file in validation_files:
-        try:
-            df = pd.read_csv(validation_file)
-            if not df.empty:
-                all_dataframes.append(df)
-        except Exception as e:
-            print(f"⚠️ Error leyendo {validation_file}: {e}")
+        df = pd.read_csv(validation_file)
+        if not df.empty:
+            all_dataframes.append(df)
+
     if not all_dataframes:
         print("❌ No se pudieron leer los archivos de validación")
         return
@@ -268,4 +263,36 @@ def calculate_global_validation_results(output_dir: Path, processed_files: list)
     global_results.to_csv(global_file, index=False, encoding='utf-8')
     
     print(f"📈 Categorías procesadas: {len(global_results) - 1}")  # -1 para excluir el promedio general
+    return global_file
+
+
+def calculate_global_validation_results_by_file(output_dir: Path, processed_files: list):
+    all_file_results = []
+    
+    for midi_file_path in processed_files:
+        midi_name = Path(midi_file_path).stem
+        validation_file = output_dir / f"{midi_name}_Mutaciones" / "Validation_Results" / "validation_results_by_category.csv"
+        
+        if validation_file.exists():
+                df = pd.read_csv(validation_file)
+                if not df.empty:
+                    promedio_row = df[df['category'] == 'PROMEDIO']
+                    
+                    if not promedio_row.empty:
+                        file_result = promedio_row.iloc[0].copy()
+                        file_result['category'] = midi_name
+                        file_result_dict = file_result.to_dict()
+                        file_result_dict['midi'] = file_result_dict.pop('category')
+                        
+                        all_file_results.append(file_result_dict)
+    
+    global_results_df = pd.DataFrame(all_file_results)
+    if not global_results_df.empty:
+        cols = list(global_results_df.columns)
+        if 'midi' in cols:
+            cols.insert(0, cols.pop(cols.index('midi')))
+            global_results_df = global_results_df[cols]
+    global_file = output_dir / "global_validation_results_by_file.csv"
+    global_results_df.to_csv(global_file, index=False, encoding='utf-8')
+    
     return global_file

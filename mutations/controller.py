@@ -1,5 +1,3 @@
-from typing import Optional
-
 from mdtk.degradations import (
     pitch_shift,
     add_note,

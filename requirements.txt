@@ -3,9 +3,8 @@ numpy==2.1.3
 librosa
 mido
 IPython
-midi2audio
-pydub
-soundfile
+# midi2audio
+# soundfile
 pyrubberband
 matplotlib<3.10
 pydub
