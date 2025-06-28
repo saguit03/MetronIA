@@ -1,71 +1,52 @@
-# MetronIA - Musical Performance Analysis System
+# MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios
 
-Sistema de análisis de interpretaciones musicales que utiliza técnicas de procesamiento de audio y aprendizaje automático para comparar grabaciones de referencia con interpretaciones en vivo.
+MetronIA se ha desarrollado como Trabajo de Fin de Grado (TFG) en la Universidad de Extremadura, España.  
 
-## Estructura del Proyecto
+El objetivo principal de este proyecto es analizar la sincronía de ritmos musicales en ficheros de audio, proporcionando una herramienta útil para estudiantes de música.  
 
-### 📁 `analyzers/`
-Módulo modularizado para análisis de audio musical.
-- **Análisis de beat spectrum** con alineamiento DTW
-- **Detección de onsets** y errores de timing
-- **Comparación de tempo** y estructura musical
-- **Visualizaciones** especializadas para análisis
+Se divide en dos partes principales:
+- Analizador MetronIA, que analiza la sincronía de dos audios.
+- Validador con mutantes, que genera variaciones de un MIDI para la validación del analizador.
 
-### 📁 `audio/`
-Archivos de audio de prueba y referencia.
-- Grabaciones de referencia y en vivo
-- Archivos MIDI y MP3 para testing
-- Diferentes tempos y variaciones musicales
+## Analizador MetronIA (analizador.py)
 
-### 📁 `mdtk/`
-Music Degradation Toolkit - Herramientas para degradación musical.
-- **Mutaciones** y degradaciones de audio
-- **Utilidades** para procesamiento MIDI
-- **Evaluación** de calidad musical
-- **Datasets** y modelos de PyTorch
+Uso:
+```bash
+    python3 analizador.py [nombre_analisis] <ruta_referencia> <live_paths> 
+```
 
-### 📁 `midi/`
-Archivos MIDI para análisis y procesamiento.
-- Partituras en formato MIDI
-- Material musical de referencia
+Args:
+- ruta_referencia: Ruta al archivo de audio de referencia
+- ruta_en_vivo: Ruta al archivo de audio en vivo
+- nombre_analisis: Nombre para el análisis
 
-### 📁 `mutations/`
-Sistema modular de mutaciones musicales.
-- **Generación** de errores musicales controlados
-- **Categorización** de tipos de errores
-- **Gestión** centralizada de mutaciones
-- **Visualización** de comparaciones
+Ejemplos:
+```bash
+    python3 analizador.py mi_analisis audio/reference.wav audio/live.wav
+    python3 analizador.py mi_analisis audio/reference.wav audio/live-1.wav audio/live-2.wav audio/live-3.wav
+```
 
-### 📁 `mutts/`
-Archivos generados por el sistema de mutaciones.
-- Audio con diferentes tipos de errores aplicados
-- Resultados de mutaciones específicas
+## Validador con mutantes (mutar_y_analizar.py)
 
-### 📁 `plots/`
-Gráficos y visualizaciones generadas.
-- Comparaciones de beat spectrum
-- Análisis de onsets y errores
-- Visualizaciones de resultados
+```bash
+# Aplicar múltiples categorías específicas
+python mutar_y_analizar.py --categories timing tempo
 
-### 📁 `references/`
-Material de referencia y documentación.
+# Usar un archivo MIDI específico
+python mutar_y_analizar.py --midi path/to/your/file.mid
 
-### 📁 `old/`
-Versiones anteriores y código legacy.
+# Analizar una carpeta con varios archivos MIDI
+python mutar_y_analizar.py --all_midi path/to/your/midi/directory
 
-## Archivos Principales
+# Establecer un límite de ficheros a procesar
+python mutar_y_analizar.py --all_midi path/to/your/midi/directory --files_limit 10
+```
+  
+Categorías disponibles:
+  - pitch: Errores de altura de las notas
+  - tempo: Errores relacionados con el tempo
+  - timing: Errores de timing de las notas
+  - duration: Errores de duración de las notas
+  - note: Errores de presencia de notas
+  - articulation: Errores de articulación
 
-TODO
-
-## Uso Básico
-
-TODO
-
-## Características
-TODO
-- ✅ **Análisis DTW** para alineamiento temporal
-- ✅ **Detección de onsets** con clasificación de errores
-- ✅ **Comparación de tempo** y estructura musical
-- ✅ **Sistema de mutaciones** para generación de errores
-- ✅ **Visualizaciones** interactivas y exportables
-- ✅ **Arquitectura modular** para fácil extensión
