@@ -152,11 +152,11 @@ def get_midi_files_to_process(args) -> List[str]:
     if args.all_midi:
         if not os.path.isdir(args.all_midi):
             print(f"❌ Error: El directorio especificado en --all_midi no existe: {args.all_midi}")
-            return
+            return []
         midi_files_to_process = get_midi_files_from_directory(args.all_midi)
         if not midi_files_to_process:
             print(f"⚠️ No se encontraron archivos .mid en el directorio: {args.all_midi}")
-            return
+            return []
         print(f"🎶 Encontrados {len(midi_files_to_process)} archivos MIDI para procesar.")
     else:
         # Permite múltiples archivos MIDI como argumentos
