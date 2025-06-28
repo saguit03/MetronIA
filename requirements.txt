@@ -1,0 +1,16 @@
+pandas
+numpy==2.1.3
+librosa
+mido
+IPython
+# midi2audio
+# soundfile
+pyrubberband
+matplotlib<3.10
+pydub
+pyaudio
+PyQt5
+tqdm
+pretty_midi
+seaborn
+# ffmpeg
