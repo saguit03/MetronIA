@@ -32,7 +32,7 @@ class MetronIA:
         # 2. Eliminación de silencios al inicio y al final de los audios
         trimmed_reference_audio, (reference_start_index, reference_end_index) = librosa.effects.trim(reference_audio)
         trimmed_live_audio, (live_start_index, live_end_index) = librosa.effects.trim(live_audio)
-        if verbose: print(f"🎧 Audios cargados y silencios eliminados.")
+        if verbose: print(f"\n🎧 Audios cargados y silencios eliminados.")
 
         # 3. Alineamiento de audios
         aligned_live_audio = stretch_audio(trimmed_reference_audio, trimmed_live_audio, sampling_rate,
@@ -49,8 +49,7 @@ class MetronIA:
 
         # 5. ANÁLISIS Y OBTENCIÓN DE RESULTADOS       
         # 5.1 Análisis de tempi del audio de referencia y del audio en vivo (sin alinear para obtener el tempo original)
-        tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(trimmed_reference_audio, trimmed_live_audio,
-                                                                        sampling_rate, reference_tempo)
+        tempo_result = self.tempo_analyzer.analyze_tempo_with_reference(trimmed_reference_audio, trimmed_live_audio, sampling_rate, reference_tempo)
         if verbose: print(
             f"⌛ Tempo de referencia: {tempo_result.tempo_ref} BPM \n⌛ Tempo en vivo: {tempo_result.tempo_live} BPM")
 
