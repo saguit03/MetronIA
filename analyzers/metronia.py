@@ -95,12 +95,8 @@ class MetronIA:
                                        dir_path=analysis_dir)
 
         return {
-            'beat_spectrum': mfcc_beat_spectrum,
             'dtw_onsets': dtw_onset_result,
             'tempo': tempo_result,
-            'reference_audio': reference_audio,
-            'live_audio': live_audio,
-            'sample_rate': sampling_rate
         }
 
     def save_analysis_summary(self, tempo_result, dtw_onset_results, dir_path):
