@@ -3,7 +3,6 @@ import traceback
 from tqdm import tqdm
 from typing import Dict, Any, List
 
-from analyzers import MetronIA
 from .config import VERBOSE_LOGGING
 from .midi_utils import save_mutation_complete
 

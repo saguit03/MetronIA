@@ -27,7 +27,7 @@ class OnsetUtils:
         return unique_onsets
 
     @staticmethod
-    def detect_onsets_with_pitch(audio: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray]:
+    def detect_onsets_with_pitch(audio: np.ndarray, sr: int):
         onsets = OnsetUtils.detect_onsets(audio, sr)
 
         if len(onsets) == 0:
@@ -56,7 +56,7 @@ class OnsetUtils:
         normalized_onsets = OnsetUtils.normalize_onsets_to_zero(onsets)
         unique_onsets = np.array(sorted(set(normalized_onsets)))
 
-        return unique_onsets, np.array(onset_notes)
+        return normalized_onsets, np.array(onset_notes)
 
     @staticmethod
     def save_onsets_analysis_to_csv(dtw_onset_result: OnsetDTWAnalysisResult, save_name: str, dir_path,
@@ -75,52 +75,52 @@ class OnsetUtils:
         for match in dtw_onset_result.matches:
             csv_data.append({
                 'onset_type': match.classification.value,
-                'ref_onset_time': round(match.ref_onset, ROUND_DECIMALS),
-                'live_onset_time': round(match.live_onset, ROUND_DECIMALS),
-                'adjustment_ms': round(match.time_adjustment, ROUND_DECIMALS),
-                'ref_note': match.ref_note,
-                'live_note': match.live_note,
-                'notes_similarity': round(match.note_similarity, ROUND_DECIMALS),
+                'onset_ref_time': match.onset_ref,
+                'onset_live_time': match.onset_live,
+                'adjustment_ms': match.time_adjustment,
+                'note_ref': match.note_ref,
+                'note_live': match.note_live,
+                'notes_similarity': match.note_similarity,
 
             })
 
-        for ref_time, ref_note in dtw_onset_result.missing_onsets:
+        for ref_time, note_ref in dtw_onset_result.missing_onsets:
             csv_data.append({
                 'onset_type': 'missing',
-                'ref_onset_time': round(ref_time, ROUND_DECIMALS),
-                'live_onset_time': None,
+                'onset_ref_time': ref_time,
+                'onset_live_time': None,
                 'adjustment_ms': None,
-                'ref_note': ref_note,
-                'live_note': None,
+                'note_ref': note_ref,
+                'note_live': None,
                 'notes_similarity': None
             })
 
-        for live_time, live_note in dtw_onset_result.extra_onsets:
+        for live_time, note_live in dtw_onset_result.extra_onsets:
             csv_data.append({
                 'onset_type': 'extra',
-                'ref_onset_time': None,
-                'live_onset_time': round(live_time, ROUND_DECIMALS),
+                'onset_ref_time': None,
+                'onset_live_time': live_time,
                 'adjustment_ms': None,
-                'ref_note': None,
-                'live_note': live_note,
+                'note_ref': None,
+                'note_live': note_live,
                 'notes_similarity': None
             })
 
         df = pd.DataFrame(csv_data)
 
         matched_mask = df['onset_type'].isin(['correct', 'late', 'early'])
-        df_matched = df[matched_mask].drop_duplicates(subset=['ref_onset_time', 'live_onset_time'], keep='first')
+        df_matched = df[matched_mask].drop_duplicates(subset=['onset_ref_time', 'onset_live_time'], keep='first')
 
         missing_mask = df['onset_type'] == 'missing'
-        df_missing = df[missing_mask].drop_duplicates(subset=['ref_onset_time'], keep='first')
+        df_missing = df[missing_mask].drop_duplicates(subset=['onset_ref_time'], keep='first')
 
         extra_mask = df['onset_type'] == 'extra'
-        df_extra = df[extra_mask].drop_duplicates(subset=['live_onset_time'], keep='first')
+        df_extra = df[extra_mask].drop_duplicates(subset=['onset_live_time'], keep='first')
 
         df_filtered = pd.concat([df_matched, df_missing, df_extra], ignore_index=True)
 
         df_sorted = df_filtered.sort_values(
-            by=['ref_onset_time', 'live_onset_time'],
+            by=['onset_ref_time', 'onset_live_time'],
             na_position='last'
         )
 
@@ -134,6 +134,6 @@ class OnsetUtils:
         first_onset_time = onsets[0]
         if first_onset_time != 0.0:
             normalized_onsets = onsets - first_onset_time
-            return normalized_onsets
+            return np.round(normalized_onsets, 1)
 
         return onsets

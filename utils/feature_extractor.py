@@ -9,15 +9,6 @@ class AudioFeatureExtractor:
     def __init__(self, config: AudioAnalysisConfig):
         self.config = config
 
-    def extract_mfcc_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
-        mfcc = librosa.feature.mfcc(
-            y=audio,
-            sr=sr,
-            hop_length=self.config.hop_length,
-            n_mfcc=self.config.n_mfcc
-        )
-        return librosa.util.normalize(mfcc, axis=1).T  # (frames, features)
-
     def compute_self_similarity_matrix(self, features):
         D = cdist(features, features, metric='cosine')
         S = 1 - D

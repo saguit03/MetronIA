@@ -14,12 +14,13 @@ class OnsetType(Enum):
 
 
 class OnsetMatch(NamedTuple):
-    ref_onset: float
-    live_onset: float
-    ref_note: str
-    live_note: str
+    onset_ref: float
+    onset_live: float
+    note_ref: str
+    note_live: str
     time_adjustment: float
     note_similarity: float
+    note_interval: str
     classification: OnsetType
 
 
@@ -32,20 +33,20 @@ class OnsetDTWAnalysisResult:
 
     @property
     def correct_matches(self) -> List[OnsetMatch]:
-        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_note, m.live_note, m.time_adjustment, m.classification,
-                           m.note_similarity)
+        return [OnsetMatch(m.onset_ref, m.onset_live, m.note_ref, m.note_live, m.time_adjustment, m.classification,
+                           m.note_similarity, m.note_interval)
                 for m in self.matches if m.classification == OnsetType.CORRECT]
 
     @property
     def late_matches(self) -> List[OnsetMatch]:
-        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_note, m.live_note, m.time_adjustment, m.classification,
-                           m.note_similarity)
+        return [OnsetMatch(m.onset_ref, m.onset_live, m.note_ref, m.note_live, m.time_adjustment, m.classification,
+                           m.note_similarity, m.note_interval)
                 for m in self.matches if m.classification == OnsetType.LATE]
 
     @property
     def early_matches(self) -> List[OnsetMatch]:
-        return [OnsetMatch(m.ref_onset, m.live_onset, m.ref_note, m.live_note, m.time_adjustment, m.classification,
-                           m.note_similarity)
+        return [OnsetMatch(m.onset_ref, m.onset_live, m.note_ref, m.note_live, m.time_adjustment, m.classification,
+                           m.note_similarity, m.note_interval)
                 for m in self.matches if m.classification == OnsetType.EARLY]
 
     def to_json_dict(self, mutation_category: str = "", mutation_name: str = "",
@@ -54,13 +55,14 @@ class OnsetDTWAnalysisResult:
         matches_data = []
         for match in self.matches:
             matches_data.append({
-                'ref_onset': float(match.ref_onset),
-                'live_onset': float(match.live_onset),
-                'ref_note': str(match.ref_note),
-                'live_note': str(match.live_note),
+                'onset_ref': float(match.onset_ref),
+                'onset_live': float(match.onset_live),
+                'note_ref': str(match.note_ref),
+                'note_live': str(match.note_live),
                 'time_adjustment': float(match.time_adjustment),
                 'classification': match.classification.value,
-                'note_similarity': float(match.note_similarity)
+                'note_similarity': float(match.note_similarity),
+                'note_interval': str(match.note_interval),
             })
 
         return {
@@ -92,13 +94,14 @@ class OnsetDTWAnalysisResult:
         matches = []
         for match_data in data['matches']:
             match = OnsetMatch(
-                ref_onset=match_data['ref_onset'],
-                live_onset=match_data['live_onset'],
-                ref_note=match_data['ref_note'],
-                live_note=match_data['live_note'],
+                onset_ref=match_data['onset_ref'],
+                onset_live=match_data['onset_live'],
+                note_ref=match_data['note_ref'],
+                note_live=match_data['note_live'],
                 time_adjustment=match_data['time_adjustment'],
                 classification=OnsetType(match_data['classification']),
                 note_similarity=match_data.get('note_similarity', 0.0),
+                note_interval=match_data.get('note_interval', ""),
             )
             matches.append(match)
 

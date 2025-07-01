@@ -1,11 +1,11 @@
 from typing import Tuple, Optional, List
 import numpy as np
+import pandas as pd
 
 from utils.config import AudioAnalysisConfig
 from .onset_results import OnsetDTWAnalysisResult, OnsetMatch, OnsetType
 from utils.onset_utils import OnsetUtils
 from utils.pitch_utils import calculate_note_similarity
-
 
 class OnsetDTWAnalyzer:
 
@@ -15,26 +15,74 @@ class OnsetDTWAnalyzer:
 
     def dtw_valid_path(self, dtw_path: np.ndarray, onsets_ref: np.ndarray, onsets_live: np.ndarray,
                        verbose: Optional[bool] = False) -> List[Tuple[int, int]]:
-        max_ref_idx = len(onsets_ref) - 1
-        max_live_idx = len(onsets_live) - 1
+        max_idx_ref = len(onsets_ref) - 1
+        max_idx_live = len(onsets_live) - 1
 
         valid_dtw_path = []
         invalid_indices_count = 0
 
-        for ref_idx, live_idx in dtw_path:
-            if ref_idx <= max_ref_idx and live_idx <= max_live_idx:
-                valid_dtw_path.append((ref_idx, live_idx))
+        for idx_ref, idx_live in dtw_path:
+            if idx_ref <= max_idx_ref and idx_live <= max_idx_live:
+                valid_dtw_path.append((idx_ref, idx_live))
             else:
                 invalid_indices_count += 1
         if verbose and invalid_indices_count > 0:
             print(f"⚠️ DTW path contenía {invalid_indices_count} índices inválidos")
-            print(f"   Rango válido ref: 0-{max_ref_idx}, live: 0-{max_live_idx}")
+            print(f"   Rango válido ref: 0-{max_idx_ref}, live: 0-{max_idx_live}")
             print(f"   Usando {len(valid_dtw_path)} emparejamientos válidos")
 
-        return valid_dtw_path
+        return valid_dtw_path[::-1]
+    
+    def classify_onset(self, onset_ref: float, onset_live: float):
+        time_adjustment = np.round((onset_ref - onset_live), self.config.round_decimals)
+        classification = self.classify_onset_adjustment(time_adjustment)
+        return time_adjustment, classification
+    
+    def classify_onset_adjustment(self, time_adjustment: float):
+        if abs(time_adjustment) < self.tolerance_ms:
+            classification = OnsetType.CORRECT
+        elif time_adjustment < 0:
+            classification = OnsetType.LATE
+        else:
+            classification = OnsetType.EARLY
+        return classification
 
-    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,
-                    onsets_live: np.ndarray, pitches_live: np.ndarray, verbose: Optional[bool] = False) -> List[
+    import pandas as pd
+
+    def get_matches_df(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,  onsets_live: np.ndarray, pitches_live: np.ndarray) -> pd.DataFrame:
+        valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
+
+        rows = []
+
+        for idx_ref, idx_live in valid_dtw_path:
+            onset_ref = onsets_ref[idx_ref]
+            onset_live = onsets_live[idx_live]
+            note_ref = pitches_ref[idx_ref]
+            note_live = pitches_live[idx_live]
+
+            time_adjustment = np.round(onset_ref - onset_live, self.config.round_decimals)
+            classification = self.classify_onset_adjustment(time_adjustment)
+            note_similarity_value, note_interval = calculate_note_similarity(note_ref, note_live)
+
+            rows.append({
+                'idx_ref': idx_ref,
+                'idx_live': idx_live,
+                'onset_ref': onset_ref,
+                'onset_live': onset_live,
+                'classification': classification.value,
+                'time_adjustment': time_adjustment,
+                'note_ref': note_ref,
+                'note_live': note_live,
+                'note_similarity': note_similarity_value,
+                'note_interval': note_interval,
+            })
+
+        df_matches = pd.DataFrame(rows)
+        df_matches.to_csv("matches.csv", index=False)
+        return df_matches
+
+
+    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,  onsets_live: np.ndarray, pitches_live: np.ndarray) -> List[
         OnsetMatch]:
         valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
         matches = []
@@ -44,33 +92,29 @@ class OnsetDTWAnalyzer:
 
         for ref_idx, live_idx in valid_dtw_path:
             if live_idx not in used_live_indices:
-                ref_onset = onsets_ref[ref_idx]
-                live_onset = onsets_live[live_idx]
-                ref_note = pitches_ref[ref_idx]
-                live_note = pitches_live[live_idx]
-                time_adjustment = np.round((ref_onset - live_onset), self.config.round_decimals)
+                onset_ref = onsets_ref[ref_idx]
+                onset_live = onsets_live[live_idx]
+                note_ref = pitches_ref[ref_idx]
+                note_live = pitches_live[live_idx]
+                time_adjustment = np.round((onset_ref - onset_live), self.config.round_decimals)
                 diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
-                if abs(diff_adj) <= self.tolerance_ms:
+                if abs(time_adjustment) < self.tolerance_ms or abs(diff_adj) < self.tolerance_ms:
                     classification = OnsetType.CORRECT
                 elif diff_adj < 0:
                     classification = OnsetType.LATE
                 else:
                     classification = OnsetType.EARLY
-                if verbose:
-                    print(f"Referencia ({ref_onset:.2f}) - Vivo ({live_onset:.2f}) \n Ajuste: {time_adjustment:.2f} ms")
-                    print(f"Diferencia ajustada: {diff_adj:.2f} ms")
-                    print(f"Clasificación: {classification.value}")
-
-                note_similarity_value, note_interval = calculate_note_similarity(ref_note, live_note)
+                note_similarity_value, note_interval = calculate_note_similarity(note_ref, note_live)
 
                 match = OnsetMatch(
-                    ref_onset=ref_onset,
-                    live_onset=live_onset,
-                    ref_note=ref_note,
-                    live_note=live_note,
+                    onset_ref=onset_ref,
+                    onset_live=onset_live,
+                    note_ref=note_ref,
+                    note_live=note_live,
                     time_adjustment=time_adjustment,
                     classification=classification,
                     note_similarity=note_similarity_value,
+                    note_interval=note_interval
                 )
                 matches.append(match)
                 used_live_indices.add(live_idx)
@@ -88,14 +132,11 @@ class OnsetDTWAnalyzer:
                           if i not in matched_live_indices]
         return matches, unmatched_ref, unmatched_live
 
-    def match_onsets_with_dtw(self, reference_audio: np.ndarray, live_audio: np.ndarray,
-                              sr: int, dtw_path) -> OnsetDTWAnalysisResult:
+    def match_onsets_with_dtw(self, reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, dtw_path) -> OnsetDTWAnalysisResult:
         onsets_ref, pitches_ref = OnsetUtils.detect_onsets_with_pitch(reference_audio, sr)
         onsets_live, pitches_live = OnsetUtils.detect_onsets_with_pitch(live_audio, sr)
 
-        matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref,
-                                                                  pitches_ref=pitches_ref, onsets_live=onsets_live,
-                                                                  pitches_live=pitches_live)
+        matches, unmatched_ref, unmatched_live = self.get_matches(dtw_path=dtw_path, onsets_ref=onsets_ref,  pitches_ref=pitches_ref, onsets_live=onsets_live, pitches_live=pitches_live)
 
         correct_notes = len([m for m in matches if m.note_similarity == 1.0])
 

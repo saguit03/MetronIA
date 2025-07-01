@@ -44,7 +44,7 @@ def get_mutation_log(mutation, mutation_log, index: Optional[int] = None):
 
     for onset, pitch in zip(mutation["onset"], mutation["pitch"]):
         if VERBOSE: print(f"Onset: {onset}, Pitch: {pitch}")
-        logs.append(NoteMutationDetail(change_type=ChangeType.NO_CHANGE, onset_timestamp=onset, pitch=pitch))
+        logs.append(NoteMutationDetail(change_type="no_change", onset_timestamp=onset, pitch=pitch))
 
     if index is not None:
         logs.pop(index)

@@ -9,7 +9,7 @@ MAX_PITCH_DEFAULT = 108
 MIN_SHIFT_DEFAULT = 100
 MAX_SHIFT_DEFAULT = np.inf
 
-MIN_DURATION_DEFAULT = 50
+MIN_DURATION_DEFAULT = 1000
 MAX_DURATION_DEFAULT = np.inf
 
 MAX_GAP_DEFAULT = 50
@@ -19,6 +19,8 @@ MAX_VELOCITY_DEFAULT = 100
 
 TRIES_DEFAULT = 10
 
+TIMING_DIFFERENCE = 1000
+
 TRIES_WARN_MSG = (
     "Generated invalid (overlapping) degraded excerpt "
     "too many times. Try raising tries parameter (default 10). "
@@ -27,30 +29,9 @@ TRIES_WARN_MSG = (
 
 from mdtk.degradations import *
 
-
-def calculate_musical_duration(tempo, note_type='eighth'):
-    quarter_note_duration = (60.0 / tempo) * 1000
-
-    note_values = {
-        'whole': 4.0,  # redonda
-        'half': 2.0,  # blanca
-        'quarter': 1.0,  # negra
-        'eighth': 0.5,  # corchea
-        'sixteenth': 0.25  # semicorchea
-    }
-
-    if note_type not in note_values:
-        note_type = 'eighth'  # default
-
-    duration = quarter_note_duration * note_values[note_type]
-    return int(duration)
-
-
 @set_random_seed
 def time_shift_mutation(
-        excerpt,
-        tempo=120,
-        note_types=['eighth', 'sixteenth'],
+        excerpt
 ):
     excerpt = pre_process(excerpt)
 
@@ -65,15 +46,11 @@ def time_shift_mutation(
 
     index = choice(valid_notes)
 
-    note_type = choice(note_types)
-
-    silence_duration = calculate_musical_duration(tempo, note_type)
-
     degraded = excerpt.copy()
     old_onset = excerpt.loc[index, "onset"]
 
     mask_later_notes = degraded["onset"] > old_onset
-    degraded.loc[mask_later_notes, "onset"] += silence_duration
+    degraded.loc[mask_later_notes, "onset"] += TIMING_DIFFERENCE
 
     degraded = post_process(degraded)
     return degraded, index
@@ -87,8 +64,7 @@ def tempo_change(excerpt, tempo_factor):
     scale_factor = 1.0 / tempo_factor
     degraded["onset"] = (degraded["onset"] * scale_factor).round().astype(int)
     degraded["dur"] = (degraded["dur"] * scale_factor).round().astype(int)
-    degraded.loc[degraded["dur"] < 1, "dur"] = degraded.loc[degraded["dur"] < 1, "dur"].astype(int).clip(
-        lower=1)  # Duración mínima
+    degraded.loc[degraded["dur"] < 1, "dur"] = degraded.loc[degraded["dur"] < 1, "dur"].astype(int).clip(lower=1)
 
     return post_process(degraded)
 
@@ -208,13 +184,10 @@ def remove_intermediate_note(excerpt):
     degraded = post_process(degraded, sort=False)
     return degraded, index
 
-
 @set_random_seed
 def note_played_too_soon_mutation(
-        excerpt,
-        tempo=120,
-        note_types=['eighth', 'sixteenth'],
-        tries=TRIES_DEFAULT,
+    excerpt,
+    tries=TRIES_DEFAULT,
 ):
     excerpt = pre_process(excerpt)
 
@@ -222,45 +195,33 @@ def note_played_too_soon_mutation(
         logging.warning("Empty excerpt. Returning None.")
         return None
 
-    valid_notes = list(excerpt.index[:-1]) if len(excerpt) > 1 else []
+    valid_notes = list(excerpt.index[2:-2]) if len(excerpt) > 1 else []
     if not valid_notes:
-        logging.warning("No valid notes to shorten (need at least 2 notes). Returning None.")
+        logging.warning("No valid notes to advance. Returning None.")
         return None
 
     index = choice(valid_notes)
 
-    target_note_type = choice(note_types)
-    new_duration = calculate_musical_duration(tempo, target_note_type)
-
     degraded = excerpt.copy()
-    original_duration = degraded.loc[index, "dur"]
+    
+    prev_index = index - 1
+    prev_onset = degraded.loc[prev_index, "onset"]
+    prev_dur = degraded.loc[prev_index, "dur"]
 
-    if new_duration >= original_duration:
-        new_duration = max(MIN_DURATION_DEFAULT, original_duration // 2)
+    new_prev_dur = min(MIN_DURATION_DEFAULT, prev_dur / 4)
+    degraded.loc[prev_index, "dur"] = new_prev_dur
 
-    duration_reduction = original_duration - new_duration
+    new_onset = prev_onset + prev_dur / 2
 
-    degraded.loc[index, "dur"] = new_duration
-
-    current_onset = degraded.loc[index, "onset"]
-    mask_later_notes = degraded["onset"] > current_onset
-    degraded.loc[mask_later_notes, "onset"] -= duration_reduction
-
-    if (degraded["onset"] < 0).any():
-        logging.warning("Generated negative onsets. Trying again.")
-        if tries == 1:
-            logging.warning(TRIES_WARN_MSG)
-            return None
+    if new_onset < 0:
         return note_played_too_soon_mutation(
             excerpt,
-            tempo=tempo,
-            note_types=note_types,
             tries=tries - 1,
         )
 
+    degraded.loc[index, "onset"] = new_onset
     degraded = post_process(degraded)
     return degraded, index
-
 
 @set_random_seed
 def offset_shift(

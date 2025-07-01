@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # DEFAULT_MIDI = "midi/BlessedMessiahAndTheTowerOfAI.mid"
-DEFAULT_MIDI = "midi/Campanita_del_lugar.mid"
+DEFAULT_MIDI = "midi/Acordai-110.mid"
 
 FASTER = 1.2
 A_LOT_FASTER = 1.5

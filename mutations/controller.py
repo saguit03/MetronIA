@@ -62,16 +62,16 @@ def ritardando_tempo_mutation(excerpt, factor=RITARDANDO):
 
 
 # note_played_too_soon. Played BEFORE it should
-def note_played_too_soon_mutation_controller(excerpt, tempo=120):
-    mutation, index = note_played_too_soon_mutation(excerpt, tempo=tempo, note_types=['sixteenth', 'eighth'])
+def note_played_too_soon_mutation_controller(excerpt):
+    mutation, index = note_played_too_soon_mutation(excerpt)
     log = NoteMutationDetail(change_type="early", onset_timestamp=mutation.loc[index, "onset"],
                              pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
 # note_played_too_late. Played AFTER it should
-def note_played_too_late_mutation(excerpt, tempo=120):
-    mutation, index = time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'])
+def note_played_too_late_mutation(excerpt):
+    mutation, index = time_shift_mutation(excerpt)
     log = NoteMutationDetail(change_type="late", onset_timestamp=mutation.loc[index, "onset"],
                              pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)

@@ -44,34 +44,76 @@ class MutationValidation:
             analysis_data = self.get_analysis_data(mutation_name)
             if logs_data is None or analysis_data is None:
                 continue
-            self.validate_mutation(mutation_name, mutation_category, logs_data, analysis_data)
+            if mutation_category == 'timing' or mutation_category == 'note':
+                self.run_validation_timing(mutation_name, mutation_category, logs_data, analysis_data)
+            else:
+                self.validate_mutation(mutation_name, mutation_category, logs_data, analysis_data)
         return self.get_overall_metrics()
+    
+    def run_validation_timing(self, mutation_name, mutation_category, logs_data, analysis_data):
+        logs_data['onset_time'] = logs_data['onset_time'].round(1)
+        analysis_data['onset_ref_time'] = analysis_data['onset_ref_time'].round(1)
+
+        filtered_logs = logs_data[logs_data['onset_type'] != "no_change"]
+
+        y_true = []
+        y_pred = []
+
+        ref_times = analysis_data['onset_ref_time'].values
+
+        for _, row in filtered_logs.iterrows():
+            onset_time = row['onset_time']
+            true_type = row['onset_type']
+
+            idx_closest = np.argmin(np.abs(ref_times - onset_time))
+            pred_type = analysis_data.iloc[idx_closest]['onset_type']
+
+            y_true.append(true_type)
+            y_pred.append(pred_type)
+
+        result_data = {
+            'mutation_name': mutation_name,
+            'category': mutation_category,
+            'y_true': self.map_onset_types(y_true),
+            'y_pred': self.map_onset_types(y_pred),
+        }
+
+        self.results.append(result_data)
+        self.results_by_category[mutation_category].append(result_data)
+
+
 
     def validate_mutation(self, mutation_name, mutation_category, logs_data, analysis_data):
-        if logs_data is None or analysis_data is None:
-            print(f"Warning: Missing data for mutation {mutation_name}")
-            return
+        y_pred_raw = analysis_data['onset_type'].tolist()
+        onset_refs = analysis_data['onset_ref_time'].tolist()
 
-        if 'onset_type' not in analysis_data.columns:
-            print(f"Warning: 'onset_type' column missing in analysis data for {mutation_name}")
-            return
-
-        if 'onset_type' not in logs_data.columns:
-            print(f"Warning: 'onset_type' column missing in logs data for {mutation_name}")
-            return
-
-        y_pred = self.map_onset_types(analysis_data['onset_type'].tolist())
-
-        if len(y_pred) == 0:
+        if len(y_pred_raw) == 0:
             print(f"Warning: No onset data found for mutation {mutation_name}")
             return
 
-        if (logs_data['onset_type'] == "tempo").all() or (logs_data['onset_type'] == "articulation").all():
-            y_true = ["correct"] * len(y_pred)
+        is_tempo_or_articulation = False
+        has_onset_time = 'onset_time' in logs_data.columns
+        
+        if 'onset_type' in logs_data.columns:
+            is_tempo_or_articulation = (logs_data['onset_type'] == "tempo").any() or (logs_data['onset_type'] == "articulation").any()
+        
+        if is_tempo_or_articulation or not has_onset_time:
+            y_true = ["correct"] * len(y_pred_raw)
+            y_pred = self.map_onset_types(y_pred_raw)
         else:
-            y_true_raw = self.map_onset_types(logs_data['onset_type'].tolist())
-            min_length = min(len(y_true_raw), len(y_pred))
-            y_true = y_true_raw[:min_length]
+            logs_times = logs_data['onset_time'].tolist()
+            logs_types = logs_data['onset_type'].tolist()
+
+            y_true_raw = []
+            for ref_time in onset_refs:
+                closest_idx = np.argmin(np.abs(np.array(logs_times) - ref_time))
+                y_true_raw.append(logs_types[closest_idx])
+
+            y_true = self.map_onset_types(y_true_raw)
+            y_pred = self.map_onset_types(y_pred_raw)
+
+            min_length = min(len(y_true), len(y_pred))
+            y_true = y_true[:min_length]
             y_pred = y_pred[:min_length]
 
         result_data = {
@@ -83,6 +125,7 @@ class MutationValidation:
 
         self.results.append(result_data)
         self.results_by_category[mutation_category].append(result_data)
+
 
     def map_onset_types(self, onset_types):
         mapping = {
@@ -101,17 +144,13 @@ class MutationValidation:
     def plot_confusion_matrix(self, cm, labels, output_path):
         plt.figure(figsize=(12, 8))
         plt.title('Confusion Matrix')
-        if cm is None:
-            plt.text(0.5, 0.5, 'No Confusion Matrix: Perfect prediction', horizontalalignment='center',
-                     verticalalignment='center', fontsize=20)
-            plt.axis('off')
-        else:
+        if cm is not None:
             sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
             plt.ylabel('True Label')
             plt.xlabel('Predicted Label')
-        plt.tight_layout()
-        plt.savefig(output_path)
-        plt.close()
+            plt.tight_layout()
+            plt.savefig(output_path)
+            plt.close()
 
     def get_metrics(self, results_list):
         all_true = []
