@@ -209,7 +209,7 @@ def note_played_too_soon_mutation(
     prev_dur = degraded.loc[prev_index, "dur"]
 
     new_prev_dur = min(MIN_DURATION_DEFAULT, prev_dur / 4)
-    degraded.loc[prev_index, "dur"] = new_prev_dur
+    degraded.loc[prev_index, "dur"] = int(new_prev_dur)
 
     new_onset = prev_onset + prev_dur / 2
 
@@ -219,7 +219,7 @@ def note_played_too_soon_mutation(
             tries=tries - 1,
         )
 
-    degraded.loc[index, "onset"] = new_onset
+    degraded.loc[index, "onset"] = int(new_onset)
     degraded = post_process(degraded)
     return degraded, index
 
