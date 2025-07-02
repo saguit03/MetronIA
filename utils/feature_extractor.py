@@ -4,6 +4,8 @@ from scipy.spatial.distance import cdist
 
 from utils.config import AudioAnalysisConfig
 
+import warnings
+warnings.filterwarnings("ignore", module="numpy")
 
 class AudioFeatureExtractor:
     def __init__(self, config: AudioAnalysisConfig):
