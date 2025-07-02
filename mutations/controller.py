@@ -76,17 +76,15 @@ def note_played_too_late_mutation_controller(excerpt):
 
 
 # note_held_too_long. A note is played longer than expected
-def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"],
-                                max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):
-    mutation, index = offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, max_duration=MAX_DUR)
+def note_held_too_long_mutation(excerpt):
+    mutation, index = offset_hold(excerpt)
     log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],  pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
 # note_cut_too_soon. A note is cut before it is expected
-def note_cut_too_soon_mutation(excerpt, min_shift=NOTE_CUT_TOO_SOON["min_shift"],
-                               max_shift=NOTE_CUT_TOO_SOON["max_shift"]):
-    mutation, index = offset_cut(excerpt, min_cut=min_shift, max_cut=max_shift)
+def note_cut_too_soon_mutation(excerpt):
+    mutation, index = offset_cut(excerpt)
     log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],  pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 

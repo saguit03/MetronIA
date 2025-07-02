@@ -129,44 +129,6 @@ def tempo_fluctuation(excerpt, fluctuation=0.2):
         int)
     return excerpt
 
-
-
-def offset_cut(
-        excerpt,
-        min_cut=MIN_SHIFT_DEFAULT,
-        max_cut=MAX_SHIFT_DEFAULT,
-        min_duration=MIN_DURATION_DEFAULT,
-):
-    excerpt = pre_process(excerpt)
-
-    min_cut = max(min_cut, 1)
-
-    duration = excerpt["dur"]
-    shortest_new_dur = (duration - max_cut).clip(lower=min_duration)
-    longest_new_dur = (duration - (min_cut - 1)).clip(upper=duration)
-
-    valid = shortest_new_dur < longest_new_dur
-    valid_notes = list(valid.index[valid])
-
-    if not valid_notes:
-        logging.warning("No valid notes to cut. Returning None.")
-        return None
-
-    index = INDEX
-
-    ssd = shortest_new_dur[index]
-    lsd = max(longest_new_dur[index], ssd)
-
-    new_dur = split_range_sample([(ssd, lsd)])
-
-    degraded = excerpt.copy()
-    degraded.loc[index, "dur"] = new_dur
-
-    degraded = post_process(degraded)
-    return degraded, index
-
-
-
 def remove_intermediate_note(excerpt):
     if excerpt.shape[0] == 0:
         logging.warning("No notes to remove. Returning None.")
@@ -231,50 +193,23 @@ def note_played_too_late_mutation(excerpt):
     degraded = post_process(degraded)
     return degraded, index-1
 
-def offset_shift(
-        excerpt,
-        min_shift=MIN_SHIFT_DEFAULT,
-        max_shift=MAX_SHIFT_DEFAULT,
-        min_duration=MIN_DURATION_DEFAULT,
-        max_duration=MAX_DURATION_DEFAULT,
-):
+def offset_hold(excerpt):
     excerpt = pre_process(excerpt)
-
-    min_shift = max(min_shift, 1)
-    max_duration += 1
-
-    onset = excerpt["onset"]
-    duration = excerpt["dur"]
-    end_time = (onset + duration).max()
-
-    shortest_lengthened_dur = (duration + min_shift).clip(lower=min_duration)
-    longest_lengthened_dur = (
-        (duration + (max_shift + 1))
-        .clip(upper=(end_time + 1) - onset)
-        .clip(upper=max_duration)
-    )
-
-    shortest_shortened_dur = (duration - max_shift).clip(lower=min_duration)
-    longest_shortened_dur = (duration - (min_shift - 1)).clip(upper=max_duration)
-
-    valid = (shortest_lengthened_dur < longest_lengthened_dur) | (
-            shortest_shortened_dur < longest_shortened_dur
-    )
-    valid_notes = list(valid.index[valid])
-
-    if not valid_notes:
-        logging.warning("No valid notes to offset shift. Returning None.")
-        return None
-
     index = INDEX
-
-    ssd = shortest_shortened_dur[index]
-    lsd = max(longest_shortened_dur[index], ssd)
-    sld = shortest_lengthened_dur[index]
-    lld = max(longest_lengthened_dur[index], sld)
-
-    duration = split_range_sample([(ssd, lsd), (sld, lld)])
     degraded = excerpt.copy()
-    degraded.loc[index, "dur"] = duration
+    dur = int(degraded.loc[index, "dur"])
+    new_dur = dur * 1.2
+    degraded.loc[index, "dur"] = int(new_dur)
+    degraded = post_process(degraded)
+    return degraded, index
+
+def offset_cut(excerpt):
+    excerpt = pre_process(excerpt)
+    index = INDEX
+    degraded = excerpt.copy()
+    dur = int(degraded.loc[index, "dur"])
+    new_dur = dur * 0.5
+    degraded.loc[index, "dur"] = int(new_dur)
+
     degraded = post_process(degraded)
     return degraded, index
