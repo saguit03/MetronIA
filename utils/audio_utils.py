@@ -12,7 +12,7 @@ import pandas as pd
 import pyrubberband.pyrb as pyrb
 import scipy.io.wavfile as wavfile
 
-N_SYNC_POINTS = 10  # Número de puntos de sincronización para la alineación
+N_SYNC_POINTS = 5  # Número de puntos de sincronización para la alineación
 
 
 def check_extension(file_path: str, midi_name) -> str:
@@ -82,6 +82,10 @@ def sinc_creciente(x, wp_s, sample_rate, out_len, n_sync_points):
 
     return pyrb.timemap_stretch(x, sample_rate, time_map)
 
+def sinc_2_points(x, sample_rate, out_len):
+    raw_map = [(0,0), (len(x), out_len)]
+    return pyrb.timemap_stretch(x, sample_rate, raw_map)
+
 
 def save_comparative_plot(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, save_name, save_dir):
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, sharey=True, figsize=(8, 4))
@@ -107,8 +111,9 @@ def save_audio(audio, save_name, save_dir, sample_rate):
 def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, hop_length: int,
                   n_sync_points=N_SYNC_POINTS,
                   save_name="aligned", save_dir: Optional[str] = "aligned"):
-    distance, wp, wp_s = calculate_warping_path(reference_audio, live_audio, sr, hop_length)
-    aligned = sinc_creciente(live_audio, wp_s, sr, len(reference_audio), n_sync_points=n_sync_points)
+    #distance, wp, wp_s = calculate_warping_path(reference_audio, live_audio, sr, hop_length)
+    #aligned = sinc_creciente(live_audio, wp_s, sr, len(reference_audio), n_sync_points=n_sync_points)
+    aligned = sinc_2_points(live_audio, sr, len(reference_audio))
     save_audio(aligned, save_name, save_dir, sr)
     return aligned
 

@@ -9,7 +9,7 @@ from mutations.controller import (
     accelerando_tempo_mutation,
     ritardando_tempo_mutation,
     note_played_too_soon_mutation_controller,
-    note_played_too_late_mutation,
+    note_played_too_late_mutation_controller,
     note_held_too_long_mutation,
     note_cut_too_soon_mutation,
     note_missing_mutation,
@@ -76,7 +76,7 @@ class MutationCatalog:
         )
         timing_mutations = [
             ("note_too_soon", "Nota tocada demasiado pronto", note_played_too_soon_mutation_controller),
-            ("note_too_late", "Nota tocada demasiado tarde", note_played_too_late_mutation),
+            ("note_too_late", "Nota tocada demasiado tarde", note_played_too_late_mutation_controller),
         ]
         for name, desc, func in timing_mutations:
             timing_category.add_mutation(MutationResult(name=name, description=desc, function=func))

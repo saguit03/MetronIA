@@ -12,8 +12,7 @@ from .logs import NoteMutationDetail, TempoMutationDetail, ArticulationMutationD
 
 # pitch_shift. Shift the pitch of a note
 def pitch_shift_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=MAX_PITCH_DEFAULT, distribution=None):
-    mutation, index = pitch_shift(excerpt, min_pitch=min_pitch, max_pitch=max_pitch, distribution=distribution,
-                                  seed=SEED)
+    mutation, index = pitch_shift(excerpt, min_pitch=min_pitch, max_pitch=max_pitch, distribution=distribution, seed=SEED)
     log = NoteMutationDetail(change_type="pitch", onset_timestamp=mutation.loc[index, "onset"],
                              pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
@@ -62,44 +61,38 @@ def ritardando_tempo_mutation(excerpt, factor=RITARDANDO):
 
 
 # note_played_too_soon. Played BEFORE it should
-def note_played_too_soon_mutation_controller(excerpt, tempo=120):
-    mutation, index = note_played_too_soon_mutation(excerpt, tempo=tempo, note_types=['sixteenth', 'eighth'])
+def note_played_too_soon_mutation_controller(excerpt):
+    mutation, index = note_played_too_soon_mutation(excerpt)
     log = NoteMutationDetail(change_type="early", onset_timestamp=mutation.loc[index, "onset"],
                              pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
 # note_played_too_late. Played AFTER it should
-def note_played_too_late_mutation(excerpt, tempo=120):
-    mutation, index = time_shift_mutation(excerpt, tempo=tempo, note_types=['eighth', 'quarter'])
-    log = NoteMutationDetail(change_type="late", onset_timestamp=mutation.loc[index, "onset"],
-                             pitch=mutation.loc[index, "pitch"])
+def note_played_too_late_mutation_controller(excerpt):
+    mutation, index = note_played_too_late_mutation(excerpt)
+    log = NoteMutationDetail(change_type="late", onset_timestamp=mutation.loc[index, "onset"], pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
 # note_held_too_long. A note is played longer than expected
-def note_held_too_long_mutation(excerpt, min_shift=NOTE_HELD_TOO_LONG["min_shift"],
-                                max_shift=NOTE_HELD_TOO_LONG["max_shift"], align_dur=True):
-    mutation, index = offset_shift(excerpt, min_shift=min_shift, max_shift=max_shift, max_duration=MAX_DUR, seed=SEED)
-    log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],
-                             pitch=mutation.loc[index, "pitch"])
+def note_held_too_long_mutation(excerpt):
+    mutation, index = offset_hold(excerpt)
+    log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],  pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
 # note_cut_too_soon. A note is cut before it is expected
-def note_cut_too_soon_mutation(excerpt, min_shift=NOTE_CUT_TOO_SOON["min_shift"],
-                               max_shift=NOTE_CUT_TOO_SOON["max_shift"]):
-    mutation, index = offset_cut(excerpt, min_cut=min_shift, max_cut=max_shift, seed=SEED)
-    log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],
-                             pitch=mutation.loc[index, "pitch"])
+def note_cut_too_soon_mutation(excerpt):
+    mutation, index = offset_cut(excerpt)
+    log = NoteMutationDetail(change_type="articulation", onset_timestamp=mutation.loc[index, "onset"],  pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
 # note_missing. Not played at all
 def note_missing_mutation(excerpt):
-    mutation, index = remove_intermediate_note(excerpt, seed=SEED)
-    log = NoteMutationDetail(change_type="missing", onset_timestamp=mutation.loc[index, "onset"],
-                             pitch=mutation.loc[index, "pitch"])
+    mutation, index = remove_intermediate_note(excerpt)
+    log = NoteMutationDetail(change_type="missing", onset_timestamp=mutation.loc[index, "onset"], pitch=mutation.loc[index, "pitch"])
     return mutation, get_mutation_log(mutation, log, index)
 
 
@@ -124,9 +117,8 @@ def note_not_expected_mutation(excerpt, min_pitch=MIN_PITCH_DEFAULT, max_pitch=M
 
 
 # articulated_legato. All the notes are smoothly connected
-def articulated_legato_mutation(excerpt, max_gap=ARTICULATED_LEGATO["max_gap"],
-                                max_notes=ARTICULATED_LEGATO["max_notes"]):
-    mutation = join_notes(excerpt, max_gap=max_gap, max_notes=max_notes, only_first=True, seed=SEED)
+def articulated_legato_mutation(excerpt, max_gap=ARTICULATED_LEGATO["max_gap"], max_notes=ARTICULATED_LEGATO["max_notes"]):
+    mutation = join_notes(excerpt, max_gap=max_gap, max_notes=max_notes, only_first=True)
     log = ArticulationMutationDetail(change_type="articulation", articulation="legato")
     return mutation, get_mutation_log(mutation, log)
 

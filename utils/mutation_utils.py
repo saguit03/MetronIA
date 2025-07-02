@@ -3,7 +3,6 @@ import traceback
 from tqdm import tqdm
 from typing import Dict, Any, List
 
-from analyzers import MetronIA
 from .config import VERBOSE_LOGGING
 from .midi_utils import save_mutation_complete
 
@@ -74,9 +73,9 @@ def analizar_mutaciones(analyzer, successful_mutations, reference_audio_path, ba
             dtw_onset_result = analysis_result.get('dtw_onsets')
             if dtw_onset_result:
                 csv_data.append(get_mutation_result_row(category_name=category_name,
-                                                        mutation_name=mutation_name,
-                                                        analysis_result=analysis_result,
-                                                        dtw_onset_result=dtw_onset_result))
+                    mutation_name=mutation_name,
+                    analysis_result=analysis_result,
+                    dtw_onset_result=dtw_onset_result))
                 progress_bar.set_postfix_str(f"✅ {category_name}")
             else:
                 progress_bar.set_postfix_str(f"⚠️ Sin resultados DTW")
@@ -119,7 +118,6 @@ def get_mutation_result_row(category_name, mutation_name, analysis_result, dtw_o
         'missing_onsets': len(dtw_onset_result.missing_onsets),
         'extra_onsets': len(dtw_onset_result.extra_onsets),
         'correct_notes': dtw_onset_result.correct_notes,
-        'beat_spectrum_max_difference': f"{analysis_result['beat_spectrum'].max_difference:.3f}",
         'tempo_reference_bpm': f"{analysis_result['tempo'].tempo_ref:.2f}",
         'tempo_live_bpm': f"{analysis_result['tempo'].tempo_live:.2f}",
         'tempo_difference_bpm': f"{analysis_result['tempo'].difference:.2f}",

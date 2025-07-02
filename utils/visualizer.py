@@ -48,37 +48,6 @@ class Visualizer:
             len([m for m in matches if m.note_similarity < 0.2])
         ]
 
-    def plot_onset_distribution(self, dtw_onset_result: OnsetDTWAnalysisResult, save_name: str,
-                                dir_path: Optional[str] = None) -> str:
-        fig, ax = plt.subplots(figsize=(10, 6))
-
-        categories = ['Correctos', 'Tarde', 'Adelantados', 'Faltantes', 'Extras']
-        counts = [
-            len(dtw_onset_result.correct_matches),
-            len(dtw_onset_result.late_matches),
-            len(dtw_onset_result.early_matches),
-            len(dtw_onset_result.missing_onsets),
-            len(dtw_onset_result.extra_onsets)
-        ]
-
-        bars = ax.bar(categories, counts, color=ONSET_COLORS[1:5], alpha=0.7)
-        ax.set_title('Distribución de Tipos de Onsets')
-        ax.set_ylabel('Cantidad')
-
-        for bar, count in zip(bars, counts):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2., height + 0.5, f'{count}',
-                    ha='center', va='bottom', fontsize=10)
-
-        plt.tight_layout()
-
-        output_dir = Path(dir_path)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{save_name}.png"
-
-        plt.savefig(output_path, dpi=self.config.plot_dpi, bbox_inches='tight')
-        plt.close(fig)
-
     def plot_onset_pie(self, dtw_onset_result: OnsetDTWAnalysisResult, save_name: str,
                        dir_path: Optional[str] = None) -> str:
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -92,20 +61,10 @@ class Visualizer:
             len(dtw_onset_result.extra_onsets)
         ]
 
-        non_zero_categories = []
-        non_zero_counts = []
-        non_zero_colors = []
-
-        for i, count in enumerate(counts):
-            if count > 0:
-                non_zero_categories.append(categories[i])
-                non_zero_counts.append(count)
-                non_zero_colors.append(ONSET_COLORS[i + 1])
-
         wedges, texts, autotexts = ax.pie(
-            non_zero_counts,
-            labels=non_zero_categories,
-            colors=non_zero_colors,
+            counts,
+            labels=categories,
+            colors=ONSET_COLORS[1:5],
             autopct='%1.1f%%',
             startangle=90
         )
@@ -118,7 +77,7 @@ class Visualizer:
             text.set_fontsize(11)
             text.set_fontweight('bold')
 
-        legend_labels = [f'{cat}: {count}' for cat, count in zip(non_zero_categories, non_zero_counts)]
+        legend_labels = [f'{cat}: {count}' for cat, count in zip(categories, counts)]
         ax.legend(wedges, legend_labels, title="Cantidad", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
 
         ax.set_title('Distribución de Tipos de Onsets', fontsize=14, fontweight='bold', pad=20)
@@ -134,12 +93,12 @@ class Visualizer:
 
     def plot_onset_timeline(self, result: OnsetDTWAnalysisResult, save_name, dir_path) -> Optional[plt.Figure]:
         fig, ax = plt.subplots(figsize=(14, 3))
-        onsets_ref_from_matches = [m.ref_onset for m in result.matches]
+        onsets_ref_from_matches = [m.onset_ref for m in result.matches]
         onsets_ref_from_missing = [ref_time for ref_time, _ in result.missing_onsets]
         all_onsets_ref = onsets_ref_from_matches + onsets_ref_from_missing
-        correct_onsets_live = [m.live_onset for m in result.matches if m.classification.value == 'correct']
-        early_onsets_live = [m.live_onset for m in result.matches if m.classification.value == 'early']
-        late_onsets_live = [m.live_onset for m in result.matches if m.classification.value == 'late']
+        correct_onsets_live = [m.onset_live for m in result.matches if m.classification.value == 'correct']
+        early_onsets_live = [m.onset_live for m in result.matches if m.classification.value == 'early']
+        late_onsets_live = [m.onset_live for m in result.matches if m.classification.value == 'late']
         extra_onsets_live = [live_time for live_time, _ in result.extra_onsets]
         ax.vlines(all_onsets_ref, 0.8, 1.0, color='blue', label='Onsets referencia', linewidth=2)
         ax.vlines(correct_onsets_live, 0.6, 0.8, color='green',
@@ -168,13 +127,13 @@ class Visualizer:
 
     def plot_onsets(self, result: OnsetDTWAnalysisResult, save_name, dir_path):
         fig, ax = plt.subplots(figsize=(16, 4))
-        onsets_ref_from_matches = [m.ref_onset for m in result.matches]
+        onsets_ref_from_matches = [m.onset_ref for m in result.matches]
         onsets_ref_from_missing = [ref_time for ref_time, _ in result.missing_onsets]
         all_onsets_ref = onsets_ref_from_matches + onsets_ref_from_missing
 
-        correct_onsets_live = [m.live_onset for m in result.matches if m.classification.value == 'correct']
-        early_onsets_live = [m.live_onset for m in result.matches if m.classification.value == 'early']
-        late_onsets_live = [m.live_onset for m in result.matches if m.classification.value == 'late']
+        correct_onsets_live = [m.onset_live for m in result.matches if m.classification.value == 'correct']
+        early_onsets_live = [m.onset_live for m in result.matches if m.classification.value == 'early']
+        late_onsets_live = [m.onset_live for m in result.matches if m.classification.value == 'late']
         extra_onsets_live = [live_time for live_time, _ in result.extra_onsets]
 
         positions = [
@@ -201,7 +160,7 @@ class Visualizer:
 
         for m in result.matches:
             if m.classification.value == 'correct':
-                ax.plot([m.ref_onset, m.live_onset], [2.0, 1.0],
+                ax.plot([m.onset_ref, m.onset_live], [2.0, 1.0],
                         color='black', linewidth=1.2, alpha=0.8, linestyle='dotted')
 
         ax.set_yticks([0.5, 1.0, 2.0])

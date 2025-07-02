@@ -45,12 +45,12 @@ def note_to_index(note: str):
     return note_index
 
 
-def calculate_note_similarity(ref_note, live_note):
-    ref_note_index = note_to_index(ref_note)
-    live_note_index = note_to_index(live_note)
+def calculate_note_similarity(note_ref, note_live):
+    note_ref_index = note_to_index(note_ref)
+    note_live_index = note_to_index(note_live)
 
-    if ref_note_index is not None and live_note_index is not None:
-        diff = abs(ref_note_index - live_note_index)
+    if note_ref_index is not None and note_live_index is not None:
+        diff = abs(note_ref_index - note_live_index)
         if diff == 0:
             similarity = 1.0
         elif diff == 1 or diff == 11:  # Semitones apart (e.g., C to C# or C to B)
@@ -67,4 +67,4 @@ def calculate_note_similarity(ref_note, live_note):
             similarity = 0.0
         return similarity, INTERVALS.get(diff, None)
     else:
-        return 0.0, None
+        return 0.0, "Unknown"

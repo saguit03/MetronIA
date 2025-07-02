@@ -16,11 +16,10 @@ from analyzers import MetronIA
 from mutations.validator import run_validation_analysis, calculate_global_validation_results
 from utils.audio_utils import obtener_audio_de_midi
 from utils.mutation_utils import aplicar_mutaciones, analizar_mutaciones
-from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, \
-    get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit
+from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit
 
 
-def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str) -> Dict[str, float]:
+def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str):
     midi_path = Path(midi_file_path)
     midi_name = midi_path.stem
     results_dir = Path(output_base_dir)
@@ -69,13 +68,12 @@ def main():
 
     print("=" * 90)
 
-    processed_files = []
     mutation_manager = filtrar_mutaciones_por_categoria(args.categories)
-    midi_progress = tqdm(midi_files_to_process, desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
-
     files_limit = get_files_limit(args)
+    midi_progress = tqdm(midi_files_to_process[:files_limit], desc="Procesando archivos MIDI", unit="archivo", dynamic_ncols=True)
 
     cont = 0
+    processed_files = []
     for midi_file_path in midi_progress:
         if cont >= files_limit:
             tqdm.write(f"** Límite de archivos alcanzado({files_limit}): deteniendo procesamiento. **")
