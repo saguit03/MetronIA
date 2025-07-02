@@ -176,7 +176,7 @@ class MutationValidation:
             plt.xlabel('Predicted Label')
             plt.tight_layout()
             plt.savefig(output_path)
-            plt.close()
+        plt.close()
 
     def get_metrics(self, results_list):
         all_true = []

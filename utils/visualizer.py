@@ -123,7 +123,7 @@ class Visualizer:
         fig_path = plots_dir / f"{save_name}.png"
         plt.savefig(fig_path, dpi=self.config.plot_dpi)
 
-        return fig, ax
+        plt.close()
 
     def plot_onsets(self, result: OnsetDTWAnalysisResult, save_name, dir_path):
         fig, ax = plt.subplots(figsize=(16, 4))
