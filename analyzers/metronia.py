@@ -44,8 +44,7 @@ class MetronIA:
         if verbose: print(f"⌛ Tempo de referencia: {tempo_result.tempo_ref} BPM \n⌛ Tempo en vivo: {tempo_result.tempo_live} BPM")
 
         # 5. Cálculo de DTW con el audio en vivo alineado
-        distance, wp, wp_s = calculate_warping_path(trimmed_reference_audio, aligned_live_audio, sampling_rate,
-                                                    self.config.hop_length)
+        distance, wp, wp_s = calculate_warping_path(trimmed_reference_audio, aligned_live_audio, sampling_rate, self.config.hop_length)
         if verbose:
             print(f"🧮 DTW calculado.")
             print(f"📊 Comenzando análisis...")

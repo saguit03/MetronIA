@@ -44,17 +44,20 @@ class MutationValidation:
             analysis_data = self.get_analysis_data(mutation_name)
             if logs_data is None or analysis_data is None:
                 continue
-            if mutation_category == 'timing' or mutation_category == 'note':
-                self.run_validation_timing(mutation_name, mutation_category, logs_data, analysis_data)
+            if mutation_category == 'timing':
+                self.validate_timing(mutation_name, mutation_category, logs_data, analysis_data)
+            elif mutation_category == 'duration':
+                self.validate_duration(mutation_name, mutation_category, logs_data, analysis_data)
             else:
                 self.validate_mutation(mutation_name, mutation_category, logs_data, analysis_data)
         return self.get_overall_metrics()
     
-    def run_validation_timing(self, mutation_name, mutation_category, logs_data, analysis_data):
-        logs_data['onset_time'] = logs_data['onset_time'].round(1)
-        analysis_data['onset_ref_time'] = analysis_data['onset_ref_time'].round(1)
+    def validate_timing(self, mutation_name, mutation_category, logs_data, analysis_data):
+        logs_data['onset_time'] = logs_data['onset_time'].round(2)
+        analysis_data['onset_ref_time'] = analysis_data['onset_ref_time'].round(2)
+        analysis_data['onset_live_time'] = analysis_data['onset_live_time'].round(2)
 
-        filtered_logs = logs_data[logs_data['onset_type'] != "no_change"]
+        filtered_logs = logs_data[logs_data['onset_type'] != "no_change"].copy()
 
         y_true = []
         y_pred = []
@@ -81,7 +84,30 @@ class MutationValidation:
         self.results.append(result_data)
         self.results_by_category[mutation_category].append(result_data)
 
+    def validate_duration(self, mutation_name, mutation_category, logs_data, analysis_data):
+        filtered_logs = logs_data[logs_data['onset_type'] != "no_change"].copy()
 
+        y_true = []
+        y_pred = []
+
+        ref_times = analysis_data['onset_ref_time'].values
+
+        for _, row in filtered_logs.iterrows():
+            onset_time = row['onset_time']
+            idx_closest = np.argmin(np.abs(ref_times - onset_time))
+            pred_type = analysis_data.iloc[idx_closest]['onset_type']
+            y_true.append('correct')
+            y_pred.append(pred_type)
+
+        result_data = {
+            'mutation_name': mutation_name,
+            'category': mutation_category,
+            'y_true': self.map_onset_types(y_true),
+            'y_pred': self.map_onset_types(y_pred),
+        }
+
+        self.results.append(result_data)
+        self.results_by_category[mutation_category].append(result_data)
 
     def validate_mutation(self, mutation_name, mutation_category, logs_data, analysis_data):
         y_pred_raw = analysis_data['onset_type'].tolist()
@@ -222,8 +248,7 @@ def run_validation_analysis(midi_name: str, results_dir: Path) -> Dict[str, floa
     validation_results_dir.mkdir(exist_ok=True)
 
     confusion_matrix_path = validation_results_dir / "confusion_matrix.png"
-    validator.plot_confusion_matrix(validation_result["confusion_matrix"], validation_result["labels"],
-                                    str(confusion_matrix_path))
+    validator.plot_confusion_matrix(validation_result["confusion_matrix"], validation_result["labels"], str(confusion_matrix_path))
 
     category_metrics = validator.get_metrics_by_category()
 

@@ -32,93 +32,41 @@ class OnsetDTWAnalyzer:
             print(f"   Usando {len(valid_dtw_path)} emparejamientos válidos")
 
         return valid_dtw_path[::-1]
-    
-    def classify_onset(self, onset_ref: float, onset_live: float):
-        time_adjustment = np.round((onset_ref - onset_live), self.config.round_decimals)
-        classification = self.classify_onset_adjustment(time_adjustment)
-        return time_adjustment, classification
-    
-    def classify_onset_adjustment(self, time_adjustment: float):
-        if abs(time_adjustment) < self.tolerance_ms:
-            classification = OnsetType.CORRECT
-        elif time_adjustment < 0:
-            classification = OnsetType.LATE
-        else:
-            classification = OnsetType.EARLY
-        return classification
 
-    import pandas as pd
-
-    def get_matches_df(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,  onsets_live: np.ndarray, pitches_live: np.ndarray) -> pd.DataFrame:
-        valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
-
-        rows = []
-
-        for idx_ref, idx_live in valid_dtw_path:
-            onset_ref = onsets_ref[idx_ref]
-            onset_live = onsets_live[idx_live]
-            note_ref = pitches_ref[idx_ref]
-            note_live = pitches_live[idx_live]
-
-            time_adjustment = np.round(onset_ref - onset_live, self.config.round_decimals)
-            classification = self.classify_onset_adjustment(time_adjustment)
-            note_similarity_value, note_interval = calculate_note_similarity(note_ref, note_live)
-
-            rows.append({
-                'idx_ref': idx_ref,
-                'idx_live': idx_live,
-                'onset_ref': onset_ref,
-                'onset_live': onset_live,
-                'classification': classification.value,
-                'time_adjustment': time_adjustment,
-                'note_ref': note_ref,
-                'note_live': note_live,
-                'note_similarity': note_similarity_value,
-                'note_interval': note_interval,
-            })
-
-        df_matches = pd.DataFrame(rows)
-        df_matches.to_csv("matches.csv", index=False)
-        return df_matches
-
-
-    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,  onsets_live: np.ndarray, pitches_live: np.ndarray) -> List[
-        OnsetMatch]:
+    def get_matches(self, dtw_path: List[Tuple[int, int]], onsets_ref: np.ndarray, pitches_ref: np.ndarray,  onsets_live: np.ndarray, pitches_live: np.ndarray) -> List[OnsetMatch]:
         valid_dtw_path = self.dtw_valid_path(dtw_path, onsets_ref, onsets_live)
         matches = []
         used_live_indices = set()
         prev_adj = None
-        valid_dtw_path = valid_dtw_path[::-1]
 
         for ref_idx, live_idx in valid_dtw_path:
-            if live_idx not in used_live_indices:
-                onset_ref = onsets_ref[ref_idx]
-                onset_live = onsets_live[live_idx]
-                note_ref = pitches_ref[ref_idx]
-                note_live = pitches_live[live_idx]
-                time_adjustment = np.round((onset_ref - onset_live), self.config.round_decimals)
-                diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
-                if abs(time_adjustment) < self.tolerance_ms or abs(diff_adj) < self.tolerance_ms:
-                    classification = OnsetType.CORRECT
-                elif diff_adj < 0:
-                    classification = OnsetType.LATE
-                else:
-                    classification = OnsetType.EARLY
-                note_similarity_value, note_interval = calculate_note_similarity(note_ref, note_live)
+            onset_ref = onsets_ref[ref_idx]
+            onset_live = onsets_live[live_idx]
+            note_ref = pitches_ref[ref_idx]
+            note_live = pitches_live[live_idx]
+            time_adjustment = np.round((onset_ref - onset_live), self.config.round_decimals)
+            diff_adj = time_adjustment - prev_adj if prev_adj is not None else 0.0
+            if abs(time_adjustment) < self.tolerance_ms or abs(diff_adj) < self.tolerance_ms:
+                classification = OnsetType.CORRECT
+            elif diff_adj < 0:
+                classification = OnsetType.LATE
+            else:
+                classification = OnsetType.EARLY
+            note_similarity_value, note_interval = calculate_note_similarity(note_ref, note_live)
 
-                match = OnsetMatch(
-                    onset_ref=onset_ref,
-                    onset_live=onset_live,
-                    note_ref=note_ref,
-                    note_live=note_live,
-                    time_adjustment=time_adjustment,
-                    classification=classification,
-                    note_similarity=note_similarity_value,
-                    note_interval=note_interval
-                )
-                matches.append(match)
-                used_live_indices.add(live_idx)
-                prev_adj = time_adjustment
+            match = OnsetMatch(
+                onset_ref=onset_ref,
+                onset_live=onset_live,
+                note_ref=note_ref,
+                note_live=note_live,
+                time_adjustment=time_adjustment,
+                classification=classification,
+                note_similarity=note_similarity_value,
+                note_interval=note_interval
+            )
+            matches.append(match)
+            used_live_indices.add(live_idx)
+            prev_adj = time_adjustment
 
         matched_ref_indices = {ref_idx for ref_idx, _ in valid_dtw_path}
         matched_live_indices = used_live_indices

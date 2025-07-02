@@ -21,6 +21,8 @@ TRIES_DEFAULT = 10
 
 TIMING_DIFFERENCE = 1000
 
+INDEX = 5
+
 TRIES_WARN_MSG = (
     "Generated invalid (overlapping) degraded excerpt "
     "too many times. Try raising tries parameter (default 10). "
@@ -29,8 +31,8 @@ TRIES_WARN_MSG = (
 
 from mdtk.degradations import *
 
-@set_random_seed
-def time_shift_mutation(
+
+def notes_too_late(
         excerpt
 ):
     excerpt = pre_process(excerpt)
@@ -44,7 +46,7 @@ def time_shift_mutation(
         logging.warning("No valid notes to time shift. Returning None.")
         return None
 
-    index = choice(valid_notes)
+    index = INDEX
 
     degraded = excerpt.copy()
     old_onset = excerpt.loc[index, "onset"]
@@ -128,7 +130,7 @@ def tempo_fluctuation(excerpt, fluctuation=0.2):
     return excerpt
 
 
-@set_random_seed
+
 def offset_cut(
         excerpt,
         min_cut=MIN_SHIFT_DEFAULT,
@@ -150,7 +152,7 @@ def offset_cut(
         logging.warning("No valid notes to cut. Returning None.")
         return None
 
-    index = choice(valid_notes)
+    index = INDEX
 
     ssd = shortest_new_dur[index]
     lsd = max(longest_new_dur[index], ssd)
@@ -164,7 +166,7 @@ def offset_cut(
     return degraded, index
 
 
-@set_random_seed
+
 def remove_intermediate_note(excerpt):
     if excerpt.shape[0] == 0:
         logging.warning("No notes to remove. Returning None.")
@@ -184,23 +186,16 @@ def remove_intermediate_note(excerpt):
     degraded = post_process(degraded, sort=False)
     return degraded, index
 
-@set_random_seed
-def note_played_too_soon_mutation(
-    excerpt,
-    tries=TRIES_DEFAULT,
-):
-    excerpt = pre_process(excerpt)
 
-    if len(excerpt) == 0:
-        logging.warning("Empty excerpt. Returning None.")
-        return None
+def note_played_too_soon_mutation(excerpt):
+    excerpt = pre_process(excerpt)
 
     valid_notes = list(excerpt.index[2:-2]) if len(excerpt) > 1 else []
     if not valid_notes:
         logging.warning("No valid notes to advance. Returning None.")
         return None
 
-    index = choice(valid_notes)
+    index = INDEX
 
     degraded = excerpt.copy()
     
@@ -208,22 +203,34 @@ def note_played_too_soon_mutation(
     prev_onset = degraded.loc[prev_index, "onset"]
     prev_dur = degraded.loc[prev_index, "dur"]
 
-    new_prev_dur = min(MIN_DURATION_DEFAULT, prev_dur / 4)
+    new_prev_dur = prev_dur * 0.3
     degraded.loc[prev_index, "dur"] = int(new_prev_dur)
 
-    new_onset = prev_onset + prev_dur / 2
-
-    if new_onset < 0:
-        return note_played_too_soon_mutation(
-            excerpt,
-            tries=tries - 1,
-        )
+    new_onset = prev_onset + new_prev_dur
 
     degraded.loc[index, "onset"] = int(new_onset)
     degraded = post_process(degraded)
     return degraded, index
 
-@set_random_seed
+
+def note_played_too_late_mutation(excerpt):
+
+    excerpt = pre_process(excerpt)
+
+    valid_notes = list(excerpt.index[2:-2]) if len(excerpt) > 1 else []
+    if not valid_notes:
+        logging.warning("No valid notes to advance. Returning None.")
+        return None
+    
+    index = INDEX
+    degraded = excerpt.copy()
+    dur = degraded.loc[index, "dur"]
+    new_onset = degraded.loc[index, "onset"] + dur*0.7
+    degraded.loc[index, "dur"] = int(dur*0.3)
+    degraded.loc[index, "onset"] = int(new_onset)
+    degraded = post_process(degraded)
+    return degraded, index-1
+
 def offset_shift(
         excerpt,
         min_shift=MIN_SHIFT_DEFAULT,
@@ -259,7 +266,7 @@ def offset_shift(
         logging.warning("No valid notes to offset shift. Returning None.")
         return None
 
-    index = choice(valid_notes)
+    index = INDEX
 
     ssd = shortest_shortened_dur[index]
     lsd = max(longest_shortened_dur[index], ssd)

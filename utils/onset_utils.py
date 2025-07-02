@@ -134,6 +134,6 @@ class OnsetUtils:
         first_onset_time = onsets[0]
         if first_onset_time != 0.0:
             normalized_onsets = onsets - first_onset_time
-            return np.round(normalized_onsets, 1)
+            return np.round(normalized_onsets, ROUND_DECIMALS)
 
         return onsets
