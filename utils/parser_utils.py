@@ -8,7 +8,7 @@ from mutations.catalog import MutationCatalog
 from mutations.globals import DEFAULT_MIDI
 from .config import VERBOSE_LOGGING
 
-FILES_LIMIT = 10
+FILES_LIMIT = 10000
 
 EPILOG = """Ejemplos de uso:
 # Aplicar todas las mutaciones a un MIDI por defecto
@@ -66,7 +66,7 @@ def mutts_pipeline_arg_parser():
         type=str,
         help='Ruta a un directorio para procesar todos los archivos .mid que contiene.'
     )
-
+    
     parser.add_argument(
         '--categories',
         nargs='*',
@@ -84,6 +84,12 @@ def mutts_pipeline_arg_parser():
         '--list-categories',
         action='store_true',
         help='Mostrar todas las categorías disponibles y salir'
+    )
+
+    parser.add_argument(
+        '--subdirectories',
+        action='store_true',
+        help='Busca archivos MIDI recursivamente en los subdirectorios cuando se usa --all_midi.'
     )
 
     parser.add_argument(
@@ -146,6 +152,18 @@ def get_midi_files_from_directory(directory_path: str) -> List[str]:
             midi_files.append(item_path)
     return midi_files
 
+def get_midi_files_from_directory_and_subdirectories(directory_path: str) -> List[str]:
+    midi_files = []
+    if not os.path.isdir(directory_path):
+        print(f"Error: '{directory_path}' no es un directorio válido.")
+        return []
+
+    for root, _, files in os.walk(directory_path):
+        for file in files:
+            if file.lower().endswith(('.mid', '.midi')):
+                midi_files.append(os.path.join(root, file))
+
+    return midi_files
 
 def get_midi_files_to_process(args) -> List[str]:
     midi_files_to_process = []
@@ -153,10 +171,10 @@ def get_midi_files_to_process(args) -> List[str]:
         if not os.path.isdir(args.all_midi):
             print(f"❌ Error: El directorio especificado en --all_midi no existe: {args.all_midi}")
             return []
-        midi_files_to_process = get_midi_files_from_directory(args.all_midi)
-        if not midi_files_to_process:
-            print(f"⚠️ No se encontraron archivos .mid en el directorio: {args.all_midi}")
-            return []
+        if args.subdirectories:
+            midi_files_to_process = get_midi_files_from_directory_and_subdirectories(args.all_midi)
+        else:
+            midi_files_to_process = get_midi_files_from_directory(args.all_midi)
     else:
         if not args.midi or len(args.midi) == 0:
             midi_files_to_process = [DEFAULT_MIDI]
@@ -164,7 +182,10 @@ def get_midi_files_to_process(args) -> List[str]:
             for midi_file in args.midi:
                 if os.path.isfile(midi_file) and midi_file.lower().endswith(('.mid', '.midi')):
                     midi_files_to_process.append(midi_file)
-    if not midi_files_to_process: midi_files_to_process = [DEFAULT_MIDI]
+
+    if not midi_files_to_process:
+        midi_files_to_process = [DEFAULT_MIDI]
+        
     return midi_files_to_process
 
 
