@@ -8,7 +8,7 @@ from mutations.catalog import MutationCatalog
 from mutations.globals import DEFAULT_MIDI
 from .config import VERBOSE_LOGGING
 
-FILES_LIMIT = 10000
+FILES_LIMIT = 100
 
 EPILOG = """Ejemplos de uso:
 # Aplicar todas las mutaciones a un MIDI por defecto
