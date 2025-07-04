@@ -1,0 +1,2 @@
+tempo_ref,tempo_live,tempo_difference,total_onsets_ref,correct_onsets,late_onsets,early_onsets,ref_missing_onsets,live_extra_onsets,correct_notes
+69,72,3.0,146,73,36,37,0,0,69

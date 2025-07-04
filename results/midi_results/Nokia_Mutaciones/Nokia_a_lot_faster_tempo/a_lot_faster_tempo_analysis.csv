@@ -1,0 +1,16 @@
+onset_type,onset_ref_time,onset_live_time,adjustment_ms,note_ref,note_live,notes_similarity
+correct,0.0,0.0,0.0,E/Fb5,E/Fb5,1.0
+correct,0.39,0.38,0.01,F#/Gb4,D5,0.2
+late,0.39,1.12,-0.73,F#/Gb4,F#/Gb4,1.0
+late,0.39,1.86,-1.47,F#/Gb4,G#/Ab4,0.6
+early,1.12,2.24,-1.12,F#/Gb4,C#/Db5,0.1
+early,1.89,2.24,-0.35,C#/Db5,C#/Db5,1.0
+correct,2.27,2.24,0.03,C#/Db5,C#/Db5,1.0
+correct,2.63,2.62,0.01,B/Cb4,B/Cb4,1.0
+correct,3.39,3.36,0.03,D4,D4,1.0
+correct,4.13,4.1,0.03,B/Cb4,E/Fb4,0.1
+correct,4.51,4.48,0.03,B/Cb4,A4,0.6
+early,4.9,4.48,0.42,C#/Db4,A4,0.2
+early,5.63,4.86,0.77,C#/Db4,A4,0.2
+correct,6.4,5.6,0.8,E/Fb4,E/Fb4,1.0
+extra,,6.34,,,E/Fb4,
