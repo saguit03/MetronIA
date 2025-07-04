@@ -1,0 +1,11 @@
+mutation_category,mutation_name,total_onsets_ref,total_onsets_live,correct_matches,late_matches,early_matches,missing_onsets,extra_onsets,correct_notes,tempo_reference_bpm,tempo_live_bpm,tempo_difference_bpm
+progressive_tempo,accelerando,584,491,241,163,87,93,0,54,120.00,117.00,3.00
+progressive_tempo,ritardando,487,613,220,61,206,0,126,54,120.00,117.00,3.00
+progressive_tempo,tempo_fluctuation,689,657,193,261,203,32,0,57,120.00,170.00,50.00
+duration,note_held_too_long,488,488,409,37,42,0,0,274,120.00,188.00,68.00
+duration,note_cut_too_soon,488,488,409,37,42,0,0,275,120.00,188.00,68.00
+note,note_missing,488,487,381,54,52,1,0,248,120.00,188.00,68.00
+note,note_not_expected,488,488,409,37,42,0,0,275,120.00,188.00,68.00
+articulation,articulated_legato,488,490,417,27,44,0,2,285,120.00,188.00,68.00
+articulation,articulated_staccato,504,504,392,53,59,0,0,200,120.00,188.00,68.00
+articulation,articulated_accentuated,488,488,409,37,42,0,0,275,120.00,188.00,68.00

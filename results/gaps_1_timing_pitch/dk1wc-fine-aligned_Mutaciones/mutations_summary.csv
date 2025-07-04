@@ -1,0 +1,4 @@
+mutation_category,mutation_name,total_onsets_ref,total_onsets_live,correct_matches,late_matches,early_matches,missing_onsets,extra_onsets,correct_notes,tempo_reference_bpm,tempo_live_bpm,tempo_difference_bpm
+pitch,pitch_shift,700,702,401,148,151,0,2,312,120.00,110.00,10.00
+timing,note_too_soon,708,710,348,175,185,0,2,234,120.00,110.00,10.00
+timing,note_too_late,706,708,356,170,180,0,2,237,120.00,110.00,10.00

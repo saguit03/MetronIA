@@ -1,0 +1,5 @@
+mutation_category,mutation_name,total_onsets_ref,total_onsets_live,correct_matches,late_matches,early_matches,missing_onsets,extra_onsets,correct_notes,tempo_reference_bpm,tempo_live_bpm,tempo_difference_bpm
+tempo,faster_tempo,411,415,262,77,72,0,4,110,120.00,110.00,10.00
+tempo,a_lot_faster_tempo,422,428,269,76,77,0,6,129,120.00,134.00,14.00
+tempo,slower_tempo,403,401,284,65,52,2,0,109,120.00,134.00,14.00
+tempo,a_lot_slower_tempo,416,409,254,84,71,7,0,64,120.00,89.00,31.00

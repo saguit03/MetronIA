@@ -1,0 +1,15 @@
+mutation_category,mutation_name,total_onsets_ref,total_onsets_live,correct_matches,late_matches,early_matches,missing_onsets,extra_onsets,correct_notes,tempo_reference_bpm,tempo_live_bpm,tempo_difference_bpm
+tempo,faster_tempo,510,516,305,96,109,0,6,160,120.00,144.00,24.00
+tempo,a_lot_faster_tempo,538,540,297,121,120,0,2,188,120.00,188.00,68.00
+tempo,slower_tempo,507,508,351,86,70,0,1,222,120.00,99.00,21.00
+tempo,a_lot_slower_tempo,514,504,261,134,109,10,0,90,120.00,124.00,4.00
+progressive_tempo,accelerando,578,483,217,179,87,95,0,62,120.00,144.00,24.00
+progressive_tempo,ritardando,513,636,186,92,235,0,123,58,120.00,99.00,21.00
+progressive_tempo,tempo_fluctuation,686,736,99,256,331,0,50,50,120.00,134.00,14.00
+duration,note_held_too_long,488,491,377,49,62,0,3,237,120.00,125.00,5.00
+duration,note_cut_too_soon,503,506,364,64,75,0,3,228,120.00,125.00,5.00
+note,note_missing,488,490,384,48,56,0,2,252,120.00,125.00,5.00
+note,note_not_expected,488,491,377,49,62,0,3,236,120.00,125.00,5.00
+articulation,articulated_legato,488,488,434,30,24,0,0,303,120.00,125.00,5.00
+articulation,articulated_staccato,557,558,338,100,119,0,1,179,120.00,125.00,5.00
+articulation,articulated_accentuated,488,491,377,49,62,0,3,236,120.00,125.00,5.00

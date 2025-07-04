@@ -1,0 +1,4 @@
+category,accuracy,precision,recall,f1_score
+PROMEDIO,0.8959,0.9929,0.8959,0.9375
+pitch,0.8996,1.0,0.8996,0.9428
+timing,0.0714,0.0561,0.0714,0.0612

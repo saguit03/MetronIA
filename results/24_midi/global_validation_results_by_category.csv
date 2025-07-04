@@ -1,0 +1,9 @@
+category,accuracy,precision,recall,f1_score
+PROMEDIO,0.7732,0.9936,0.7732,0.8662
+articulation,0.9315,1.0,0.9315,0.9634
+duration,0.9783,1.0,0.9783,0.9855
+note,0.857,0.9771,0.857,0.9102
+pitch,0.9786,1.0,0.9786,0.9884
+progressive_tempo,0.425,1.0,0.425,0.5685
+tempo,0.8944,1.0,0.8944,0.9435
+timing,0.5,0.4792,0.5,0.4861
