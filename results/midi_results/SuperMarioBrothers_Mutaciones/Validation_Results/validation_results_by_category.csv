@@ -1,9 +1,0 @@
-category,accuracy,precision,recall,f1_score,total_onsets_ref,total_onsets_live
-pitch,1.0,1.0,1.0,1.0,106,106
-tempo,0.9701,1.0,0.9701,0.9848,435,435
-progressive_tempo,0.4476,1.0,0.4476,0.6184,429,429
-timing,0.5,0.25,0.5,0.3333,2,2
-duration,1.0,1.0,1.0,1.0,2,2
-note,0.8638,0.9899,0.8638,0.9226,213,213
-articulation,0.9811,1.0,0.9811,0.9905,318,318
-PROMEDIO,0.81,0.9972,0.81,0.8935,1505,1505
