@@ -91,6 +91,12 @@ def mutts_pipeline_arg_parser():
         action='store_true',
         help='Busca archivos MIDI recursivamente en los subdirectorios cuando se usa --all_midi.'
     )
+    
+    parser.add_argument(
+        '--cut_excerpt',
+        action='store_true',
+        help='Limita el MIDI a las primeras 30 notas para optimizar el procesamiento.'
+    )
 
     parser.add_argument(
         '--files_limit',
@@ -177,14 +183,19 @@ def get_midi_files_to_process(args) -> List[str]:
             midi_files_to_process = get_midi_files_from_directory(args.all_midi)
     else:
         if not args.midi or len(args.midi) == 0:
-            midi_files_to_process = [DEFAULT_MIDI]
+            midi_files_to_process = ["midi/zips/gaps_v1_midi/1/1k1wc-fine-aligned.mid",
+        "midi/zips/gaps_v1_midi/1/1M1wc-fine-aligned.mid",
+        "midi/zips/gaps_v1_midi/1/1V1wc-fine-aligned.mid"]
         else:
             for midi_file in args.midi:
                 if os.path.isfile(midi_file) and midi_file.lower().endswith(('.mid', '.midi')):
                     midi_files_to_process.append(midi_file)
 
     if not midi_files_to_process:
-        midi_files_to_process = [DEFAULT_MIDI]
+        
+        midi_files_to_process = ["midi/zips/gaps_v1_midi/1/1k1wc-fine-aligned.mid",
+        "midi/zips/gaps_v1_midi/1/1M1wc-fine-aligned.mid",
+        "midi/zips/gaps_v1_midi/1/1V1wc-fine-aligned.mid"]
         
     return midi_files_to_process
 
@@ -193,3 +204,6 @@ def get_files_limit(args) -> int:
     if args.files_limit <= 0:
         return FILES_LIMIT
     return args.files_limit
+
+def is_cut_excerpt_enabled(args) -> bool:
+    return args.cut_excerpt if hasattr(args, 'cut_excerpt') else False

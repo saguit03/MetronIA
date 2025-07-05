@@ -16,16 +16,16 @@ from analyzers import MetronIA
 from mutations.validator import run_validation_analysis, calculate_global_validation_results
 from utils.audio_utils import obtener_audio_de_midi
 from utils.mutation_utils import aplicar_mutaciones, analizar_mutaciones
-from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit
+from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit, is_cut_excerpt_enabled
 
 
-def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str):
+def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_dir: str, cut_excerpt) -> Dict[str, float]:
     midi_path = Path(midi_file_path)
     midi_name = midi_path.stem
     results_dir = Path(output_base_dir)
     results_dir.mkdir(exist_ok=True)
 
-    original_excerpt, base_tempo, reference_audio_path = obtener_audio_de_midi(midi_file_path, midi_name)
+    original_excerpt, base_tempo, reference_audio_path = obtener_audio_de_midi(midi_file_path=midi_file_path, midi_name=midi_name, verbose=False, cut_excerpt=True)
 
     if original_excerpt is None:
         print(f"❌ Error: obtener_audio_de_midi no pudo procesar el archivo {midi_file_path}.")
@@ -74,6 +74,7 @@ def main():
 
     cont = 0
     processed_files = []
+    cut_excerpt = is_cut_excerpt_enabled(args)
     for midi_file_path in midi_progress:
         if cont >= files_limit:
             tqdm.write(f"** Límite de archivos alcanzado({files_limit}): deteniendo procesamiento. **")
@@ -87,7 +88,8 @@ def main():
             validation_metrics = create_mutation_pipeline(
                 mutation_manager=mutation_manager,
                 midi_file_path=midi_file_path,
-                output_base_dir=output_dir
+                output_base_dir=output_dir,
+                cut_excerpt=cut_excerpt
             )
 
             if validation_metrics:

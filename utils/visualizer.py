@@ -126,7 +126,13 @@ class Visualizer:
         plt.close()
 
     def plot_onsets(self, result: OnsetDTWAnalysisResult, save_name, dir_path):
-        fig, ax = plt.subplots(figsize=(16, 4))
+        result_len = len(result.matches) + len(result.missing_onsets) + len(result.extra_onsets)
+        if result_len > 160:
+            figsize = (32, 4)
+        else:
+            figsize = (16, 4)
+
+        fig, ax = plt.subplots(figsize=figsize)
         onsets_ref_from_matches = [m.onset_ref for m in result.matches]
         onsets_ref_from_missing = [ref_time for ref_time, _ in result.missing_onsets]
         all_onsets_ref = onsets_ref_from_matches + onsets_ref_from_missing
@@ -161,7 +167,7 @@ class Visualizer:
         for m in result.matches:
             if m.classification.value == 'correct':
                 ax.plot([m.onset_ref, m.onset_live], [2.0, 1.0],
-                        color='black', linewidth=1.2, alpha=0.8, linestyle='dotted')
+                        color='black', linewidth=0.5, alpha=0.8, linestyle='dotted')
 
         ax.set_yticks([0.5, 1.0, 2.0])
         ax.set_yticklabels(['Extras/Perdidos', 'En vivo', 'Referencia'])

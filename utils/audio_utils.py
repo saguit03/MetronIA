@@ -118,7 +118,7 @@ def stretch_audio(reference_audio: np.ndarray, live_audio: np.ndarray, sr: int, 
     return aligned
 
 
-def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False):
+def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool] = False, cut_excerpt: Optional[bool] = False) -> Optional[Tuple]:
     from utils.midi_utils import load_midi_with_pretty_midi, load_midi_with_mido, save_excerpt_in_audio, extract_tempo_from_midi
     try:
         original_excerpt = load_midi_with_pretty_midi(midi_file_path)
@@ -134,6 +134,8 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
 
     base_tempo = extract_tempo_from_midi(midi_file_path)
     if verbose: print(f"✅ Tempo detectado: {base_tempo} BPM")
+
+    if cut_excerpt:original_excerpt = original_excerpt[:30] # Limitar para 
 
     try:
         reference_audio_path = save_excerpt_in_audio(
