@@ -135,7 +135,7 @@ def obtener_audio_de_midi(midi_file_path: str, midi_name, verbose: Optional[bool
     base_tempo = extract_tempo_from_midi(midi_file_path)
     if verbose: print(f"✅ Tempo detectado: {base_tempo} BPM")
 
-    if cut_excerpt:original_excerpt = original_excerpt[:30] # Limitar para 
+    if cut_excerpt:original_excerpt = original_excerpt[:100]
 
     try:
         reference_audio_path = save_excerpt_in_audio(

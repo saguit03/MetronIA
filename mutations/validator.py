@@ -76,7 +76,7 @@ class MutationValidation:
         }
 
         self.results.append(result_data)
-        self.results_by_category[mutation_category].append(result_data)
+        self.results_by_category[mutation_name].append(result_data)
 
 
     def validate_duration(self, mutation_name, mutation_category, logs_data, analysis_data):
@@ -103,7 +103,7 @@ class MutationValidation:
         }
 
         self.results.append(result_data)
-        self.results_by_category[mutation_category].append(result_data)
+        self.results_by_category[mutation_name].append(result_data)
 
     def validate_mutation(self, mutation_name, mutation_category, logs_data, analysis_data):
         y_pred_raw = analysis_data['onset_type'].tolist()
@@ -146,7 +146,7 @@ class MutationValidation:
         }
 
         self.results.append(result_data)
-        self.results_by_category[mutation_category].append(result_data)
+        self.results_by_category[mutation_name].append(result_data)
 
 
     def map_onset_types(self, onset_types):
