@@ -8,12 +8,12 @@ from pathlib import Path
 from mdtk.utils import synthesize_from_note_df
 from mutations.globals import MUTATIONS_PATH, MUTATIONS_AUDIO_PATH, MUTATIONS_MIDI_PATH
 from mutations.results import MutationResult
-from utils.audio_utils import save_audio
 
 warnings.filterwarnings("ignore", module="pretty_midi")
 
 
 def save_excerpt_in_audio(excerpt, dir_name, save_name, sample_rate=16000):
+    from utils.audio_utils import save_audio
     audio_data = synthesize_from_note_df(excerpt)
     audio_normalized = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
     save_dir = MUTATIONS_PATH / Path(dir_name) / MUTATIONS_AUDIO_PATH

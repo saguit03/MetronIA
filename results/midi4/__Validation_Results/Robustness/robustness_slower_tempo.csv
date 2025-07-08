@@ -1,0 +1,5 @@
+mutation_name,category,total_onsets,total_errors,error_rate,midi_id
+slower_tempo,tempo,26,0,0.0,Acordai-110
+slower_tempo,tempo,60,1,0.0167,BlessedMessiahAndTheTowerOfAI
+slower_tempo,tempo,72,7,0.0972,Eres_Tú_Mocedades
+slower_tempo,tempo,12,0,0.0,Nokia

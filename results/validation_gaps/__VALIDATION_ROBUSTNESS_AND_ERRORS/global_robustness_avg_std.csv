@@ -1,0 +1,14 @@
+mutation_name,min_error_rate,max_error_rate,mean_error_rate,std_error_rate
+a_lot_faster_tempo,0.0,0.7121,0.1919,0.1442
+a_lot_slower_tempo,0.0,0.6765,0.2022,0.1557
+accelerando,0.0833,0.859,0.4817,0.1798
+articulated_accentuated,0.0,0.5526,0.0424,0.098
+articulated_legato,0.0,0.8305,0.1424,0.1584
+articulated_staccato,0.0,0.7857,0.1514,0.1602
+faster_tempo,0.0,0.65,0.1257,0.1379
+note_cut_too_soon,0.0,0.5714,0.0687,0.1071
+note_held_too_long,0.0,0.5526,0.0429,0.0956
+pitch_shift,0.0,0.56,0.0518,0.1026
+ritardando,0.0263,0.8778,0.5421,0.1835
+slower_tempo,0.0,0.6515,0.1419,0.1524
+tempo_fluctuation,0.0,0.9839,0.6476,0.2136

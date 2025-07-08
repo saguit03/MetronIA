@@ -1,0 +1,5 @@
+mutation_name,category,total_onsets,total_errors,error_rate,midi_id
+tempo_fluctuation,progressive_tempo,33,17,0.5152,Acordai-110
+tempo_fluctuation,progressive_tempo,107,76,0.7103,BlessedMessiahAndTheTowerOfAI
+tempo_fluctuation,progressive_tempo,102,88,0.8627,Eres_Tú_Mocedades
+tempo_fluctuation,progressive_tempo,14,7,0.5,Nokia

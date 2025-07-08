@@ -53,61 +53,57 @@ class MutationValidation:
         return self.get_overall_metrics()
     
     def validate_timing(self, mutation_name, mutation_category, logs_data, analysis_data):
-        logs_data['onset_time'] = logs_data['onset_time'].round(2)
-        analysis_data['onset_ref_time'] = analysis_data['onset_ref_time'].round(2)
-        analysis_data['onset_live_time'] = analysis_data['onset_live_time'].round(2)
-
         filtered_logs = logs_data[logs_data['onset_type'] != "no_change"].copy()
+        filtered_data = analysis_data[analysis_data['onset_type'] != "correct"].copy()
 
         y_true = []
         y_pred = []
 
-        ref_times = analysis_data['onset_ref_time'].values
+        for _, logs_row in filtered_logs.iterrows():
+            for _, analysis_row in filtered_data.iterrows():
+                if logs_row.name == analysis_row.name:
+                    y_true.append(logs_row['onset_type'])
+                    y_pred.append(analysis_row['onset_type'])
 
-        for _, row in filtered_logs.iterrows():
-            onset_time = row['onset_time']
-            true_type = row['onset_type']
-
-            idx_closest = np.argmin(np.abs(ref_times - onset_time))
-            pred_type = analysis_data.iloc[idx_closest]['onset_type']
-
-            y_true.append(true_type)
-            y_pred.append(pred_type)
-
+        y_true = self.map_onset_types(y_true)
+        y_pred = self.map_onset_types(y_pred)
+        
         result_data = {
             'mutation_name': mutation_name,
             'category': mutation_category,
-            'y_true': self.map_onset_types(y_true),
-            'y_pred': self.map_onset_types(y_pred),
+            'y_true': y_true,
+            'y_pred': y_pred
         }
 
         self.results.append(result_data)
-        self.results_by_category[mutation_category].append(result_data)
+        self.results_by_category[mutation_name].append(result_data)
+
 
     def validate_duration(self, mutation_name, mutation_category, logs_data, analysis_data):
         filtered_logs = logs_data[logs_data['onset_type'] != "no_change"].copy()
+        filtered_data = analysis_data[analysis_data['onset_type'] != "correct"].copy()
 
         y_true = []
         y_pred = []
 
-        ref_times = analysis_data['onset_ref_time'].values
+        for _, logs_row in filtered_logs.iterrows():
+            for _, analysis_row in filtered_data.iterrows():
+                if logs_row.name == analysis_row.name:
+                    y_true.append(logs_row['onset_type'])
+                    y_pred.append(analysis_row['onset_type'])
 
-        for _, row in filtered_logs.iterrows():
-            onset_time = row['onset_time']
-            idx_closest = np.argmin(np.abs(ref_times - onset_time))
-            pred_type = analysis_data.iloc[idx_closest]['onset_type']
-            y_true.append('correct')
-            y_pred.append(pred_type)
+        y_true = self.map_onset_types(y_true)
+        y_pred = self.map_onset_types(y_pred)
 
         result_data = {
             'mutation_name': mutation_name,
             'category': mutation_category,
-            'y_true': self.map_onset_types(y_true),
-            'y_pred': self.map_onset_types(y_pred),
+            'y_true': y_true,
+            'y_pred': y_pred
         }
 
         self.results.append(result_data)
-        self.results_by_category[mutation_category].append(result_data)
+        self.results_by_category[mutation_name].append(result_data)
 
     def validate_mutation(self, mutation_name, mutation_category, logs_data, analysis_data):
         y_pred_raw = analysis_data['onset_type'].tolist()
@@ -150,7 +146,7 @@ class MutationValidation:
         }
 
         self.results.append(result_data)
-        self.results_by_category[mutation_category].append(result_data)
+        self.results_by_category[mutation_name].append(result_data)
 
 
     def map_onset_types(self, onset_types):
@@ -176,7 +172,7 @@ class MutationValidation:
             plt.xlabel('Predicted Label')
             plt.tight_layout()
             plt.savefig(output_path)
-            plt.close()
+        plt.close()
 
     def get_metrics(self, results_list):
         all_true = []

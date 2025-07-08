@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from utils.config import AudioAnalysisConfig
 from utils.feature_extractor import AudioFeatureExtractor
 
+import warnings
+warnings.filterwarnings("ignore", module="numpy")
 
 @dataclass
 class BeatSpectrumResult:

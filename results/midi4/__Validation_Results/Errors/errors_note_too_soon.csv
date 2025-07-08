@@ -1,0 +1,5 @@
+mutation_name,category,detected_errors,located_errors,total_errors_introduced,total_errors_analyzed,midi_id
+note_too_soon,timing,True,False,1,7,Acordai-110
+note_too_soon,timing,True,False,1,9,BlessedMessiahAndTheTowerOfAI
+note_too_soon,timing,True,True,1,17,Eres_Tú_Mocedades
+note_too_soon,timing,True,False,1,1,Nokia
