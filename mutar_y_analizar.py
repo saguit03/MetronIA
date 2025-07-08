@@ -13,7 +13,7 @@ from tqdm import tqdm
 from typing import Dict
 
 from analyzers import MetronIA
-from mutations.validator import run_validation_analysis, calculate_global_validation_results
+from generate_validation import validate_pipeline
 from utils.audio_utils import obtener_audio_de_midi
 from utils.mutation_utils import aplicar_mutaciones, analizar_mutaciones
 from utils.parser_utils import mutts_pipeline_arg_parser, get_output_directory, listar_categorias, get_midi_files_to_process, filtrar_mutaciones_por_categoria, get_files_limit, is_cut_excerpt_enabled
@@ -37,8 +37,8 @@ def create_mutation_pipeline(mutation_manager, midi_file_path: str, output_base_
 
     analizar_mutaciones(analyzer, successful_mutations, reference_audio_path, base_tempo, midi_name, results_dir)
 
-    validation_metrics = run_validation_analysis(midi_name, results_dir)
-    return validation_metrics
+    # validation_metrics = run_validation_analysis(midi_name, results_dir)
+    # return validation_metrics
 
 def main():
     args = mutts_pipeline_arg_parser()
@@ -85,17 +85,18 @@ def main():
             midi_filename = Path(midi_file_path).name
             midi_progress.set_description(f"Procesando {midi_filename}")
 
-            validation_metrics = create_mutation_pipeline(
+            create_mutation_pipeline(
                 mutation_manager=mutation_manager,
                 midi_file_path=midi_file_path,
                 output_base_dir=output_dir,
                 cut_excerpt=cut_excerpt
             )
+            processed_files.append(midi_file_path)
 
-            if validation_metrics:
-                processed_files.append(midi_file_path)
-            else:
-                tqdm.write(f"⚠️ {midi_filename} sin métricas")
+            # if validation_metrics:
+
+            # else:
+                # tqdm.write(f"⚠️ {midi_filename} sin métricas")
 
         except KeyboardInterrupt:
             tqdm.write(f"[X] Pipeline interrumpido por el usuario.")
@@ -107,7 +108,8 @@ def main():
 
     midi_progress.close()
     if processed_files:
-        calculate_global_validation_results(output_dir, processed_files)
+        output_dir = Path(output_dir)
+        validate_pipeline(output_dir)
         tqdm.write(f"✅ Pipeline de mutaciones completado para {len(processed_files)} archivos")
 
 if __name__ == "__main__":

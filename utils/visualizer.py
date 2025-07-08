@@ -64,7 +64,7 @@ class Visualizer:
         wedges, texts, autotexts = ax.pie(
             counts,
             labels=categories,
-            colors=ONSET_COLORS[1:5],
+            colors=['green', 'purple', 'orange', 'gray', 'red'],
             autopct='%1.1f%%',
             startangle=90
         )
