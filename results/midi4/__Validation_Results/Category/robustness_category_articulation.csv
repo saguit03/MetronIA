@@ -1,0 +1,13 @@
+mutation_name,category,total_onsets,total_errors,error_rate,midi_id
+articulated_legato,articulation,26,10,0.3846,Acordai-110
+articulated_staccato,articulation,26,0,0.0,Acordai-110
+articulated_accentuated,articulation,26,0,0.0,Acordai-110
+articulated_legato,articulation,59,0,0.0,BlessedMessiahAndTheTowerOfAI
+articulated_staccato,articulation,59,0,0.0,BlessedMessiahAndTheTowerOfAI
+articulated_accentuated,articulation,59,0,0.0,BlessedMessiahAndTheTowerOfAI
+articulated_legato,articulation,70,24,0.3429,Eres_Tú_Mocedades
+articulated_staccato,articulation,70,0,0.0,Eres_Tú_Mocedades
+articulated_accentuated,articulation,70,0,0.0,Eres_Tú_Mocedades
+articulated_legato,articulation,12,2,0.1667,Nokia
+articulated_staccato,articulation,12,0,0.0,Nokia
+articulated_accentuated,articulation,12,0,0.0,Nokia

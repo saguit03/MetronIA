@@ -1,0 +1,5 @@
+mutation_name,category,total_onsets,total_errors,error_rate,midi_id
+note_cut_too_soon,duration,26,0,0.0,Acordai-110
+note_cut_too_soon,duration,61,3,0.0492,BlessedMessiahAndTheTowerOfAI
+note_cut_too_soon,duration,75,9,0.12,Eres_Tú_Mocedades
+note_cut_too_soon,duration,12,0,0.0,Nokia
