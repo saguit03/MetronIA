@@ -1,12 +1,13 @@
 # MetronIA ― Sistema de Análisis de Sincronía de Ritmos Musicales en Audios
 
-MetronIA se ha desarrollado como Trabajo de Fin de Grado (TFG) en la Universidad de Extremadura, España.  
+MetronIA se ha desarrollado como Trabajo de Fin de Grado (TFG) en la Universidad de Extremadura, España. [Premiado por la Cátedra Telefónica de la UEx](https://catedratelefonica.unex.es/resolucion-de-los-premios-catedra-telefonica-2025-para-trabajos-fin-de-estudios-relacionados-con-la-transformacion-digitales-de-sectores-productivos/) por el uso de nuevas tecnologías orientadas a la transofrmación digital de de sectores productivos (curso 2024/2025).
 
 El objetivo principal de este proyecto es analizar la sincronía de ritmos musicales en ficheros de audio, proporcionando una herramienta útil para estudiantes de música.  
 
 Se divide en dos partes principales:  
 - Analizador MetronIA, que analiza la sincronía de dos audios.
 - Validador con mutantes, que genera variaciones de un MIDI para la validación del analizador.
+
 ## Requisitos del sistema
 
 - Python 3.10 o superior
